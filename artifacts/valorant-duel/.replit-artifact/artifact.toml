@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Valorant Duel"
+description = "Painel responsivo em português para gerenciar um campeonato amistoso de Valorant 1x1 entre cinco jogadores, com resultados persistidos no navegador, classificação automática, calendário todos contra todos e chaveamento dinâmico da repescagem até a final."
+version = "1.0.0"
+id = "artifacts/valorant-duel"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21936
+
+[services.development]
+run = "pnpm --filter @workspace/valorant-duel run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/valorant-duel", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/valorant-duel/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21936"
+BASE_PATH = "/"
