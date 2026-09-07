@@ -1,50 +1,56 @@
 import { TournamentState } from '@/hooks/useTournamentState';
 import { MatchCard } from '@/components/MatchCard';
-import { Trophy } from 'lucide-react';
+import { LogFeed } from '@/components/LogFeed';
 
 export function OverviewView({ state }: { state: TournamentState }) {
-  const { champion, progress, nextMatches, scores, updateScore } = state;
+  const { progress, nextMatches, champion, logs, clearLogs, groupMatches } = state;
+  const isStarted = groupMatches.length > 0;
 
   return (
     <div className="space-y-10">
-      {champion && (
-         <div className="bg-primary text-primary-foreground p-10 text-center val-clip-tl shadow-lg animate-in slide-in-from-bottom-4 duration-500 relative overflow-hidden">
-           <div className="absolute top-0 right-0 opacity-10 translate-x-1/4 -translate-y-1/4">
-              <Trophy size={200} />
-           </div>
-           <h2 className="font-display text-3xl mb-1 tracking-widest uppercase opacity-90">Grande Campeão</h2>
-           <p className="font-display text-7xl font-bold uppercase tracking-wider">{champion}</p>
-         </div>
-      )}
-
-      <div className="bg-card border border-border p-6 md:p-8 shadow-sm">
-         <div className="flex justify-between items-end mb-4">
-           <h3 className="font-display text-2xl tracking-wide uppercase">Progresso do Torneio</h3>
-           <span className="font-display text-3xl text-primary">{progress}%</span>
-         </div>
-         <div className="h-3 bg-muted w-full overflow-hidden val-clip-br">
-            <div 
-              className="h-full bg-primary transition-all duration-1000 ease-out" 
-              style={{ width: `${progress}%` }} 
-            />
-         </div>
+      <div>
+        <h2 className="font-display text-3xl text-foreground uppercase tracking-wide mb-2">Visão Geral</h2>
+        <div className="w-full bg-muted h-2 rounded-none overflow-hidden border border-border">
+          <div className="bg-primary h-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="mt-2 text-right font-mono text-sm text-muted-foreground">{progress}% Concluído</div>
       </div>
 
-      {nextMatches.length > 0 && (
-         <div>
-           <div className="flex items-center gap-3 mb-6 border-b border-border pb-3">
-             <h3 className="font-display text-2xl text-primary uppercase tracking-wide">Próximas Partidas Pendentes</h3>
-           </div>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             {nextMatches.slice(0, 4).map(m => (
-                <MatchCard key={m.id} match={m} score={scores[m.id]} onSave={updateScore} />
-             ))}
-           </div>
-           {nextMatches.length === 0 && (
-              <p className="text-muted-foreground italic">Todas as partidas pendentes foram concluídas.</p>
-           )}
-         </div>
+      {!isStarted && (
+        <div className="bg-card border border-border p-8 text-center">
+          <h3 className="font-display text-xl text-primary uppercase tracking-wide mb-2">Torneio não iniciado</h3>
+          <p className="text-muted-foreground">Vá até a aba Partidas para sortear os confrontos iniciais.</p>
+        </div>
       )}
+
+      {champion && (
+        <div className="bg-primary/10 border border-primary/30 p-8 text-center val-clip-br animate-in zoom-in duration-500">
+          <h3 className="font-display text-xl text-primary uppercase tracking-wide mb-2">Campeão</h3>
+          <div className="font-display text-5xl text-foreground uppercase tracking-wider">{champion}</div>
+        </div>
+      )}
+
+      {isStarted && !champion && (
+        <div>
+          <h3 className="font-display text-xl text-muted-foreground uppercase tracking-wide mb-4 border-b border-border pb-2">Próximos Confrontos</h3>
+          {nextMatches.length === 0 ? (
+            <p className="text-muted-foreground">Nenhuma partida pendente pronta para ser jogada no momento.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {nextMatches.slice(0, 4).map(m => (
+                <div key={m.id}>
+                  <div className="text-xs font-display text-muted-foreground uppercase tracking-widest mb-2">
+                    {m.phase === 'group' ? `Grupo - Rodada ${m.round}` : m.phase.includes('final') ? 'Finais' : 'Playoffs'}
+                  </div>
+                  <MatchCard match={m} onSave={state.updateScore} readOnly />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isStarted && <LogFeed logs={logs} onClear={clearLogs} />}
     </div>
   );
 }

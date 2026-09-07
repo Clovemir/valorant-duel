@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import { RefreshCw, LayoutDashboard, Swords, ListOrdered, GitMerge, FileText } from 'lucide-react';
+import { RefreshCw, LayoutDashboard, Swords, ListOrdered, GitMerge, FileText, Download, Upload } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
@@ -18,9 +18,9 @@ const queryClient = new QueryClient();
 function TournamentApp() {
   const [location, setLocation] = useLocation();
   const [isResetOpen, setIsResetOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const state = useTournamentState();
-  
   const currentView = location === '/' ? 'overview' : location.slice(1);
   
   const tabs = [
@@ -30,6 +30,40 @@ function TournamentApp() {
     { id: 'bracket', label: 'Chaveamento', icon: GitMerge },
     { id: 'rules', label: 'Regras', icon: FileText }
   ];
+
+  const handleExport = () => {
+    const data = {
+      schedule: localStorage.getItem('valorant_duel_schedule'),
+      scores: localStorage.getItem('valorant_duel_scores'),
+      byes: localStorage.getItem('valorant_duel_byes'),
+      logs: localStorage.getItem('valorant_duel_logs')
+    };
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `valorant_duel_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+         const data = JSON.parse(event.target?.result as string);
+         if (data.schedule) localStorage.setItem('valorant_duel_schedule', data.schedule);
+         if (data.scores) localStorage.setItem('valorant_duel_scores', data.scores);
+         if (data.byes) localStorage.setItem('valorant_duel_byes', data.byes);
+         if (data.logs) localStorage.setItem('valorant_duel_logs', data.logs);
+         window.location.reload();
+      } catch {
+         alert("Arquivo de backup inválido.");
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background text-foreground">
@@ -42,13 +76,36 @@ function TournamentApp() {
              </h1>
           </div>
           
-          <button 
-            onClick={() => setIsResetOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors focus:outline-none focus:ring-1 focus:ring-destructive"
-            aria-label="Reiniciar torneio"
-          >
-            <RefreshCw size={14} /> Reset
-          </button>
+          <div className="flex items-center gap-2">
+            <input 
+              type="file" 
+              accept=".json" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleImport} 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-muted-foreground border border-border hover:text-foreground hover:border-muted-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary hidden sm:flex"
+              aria-label="Restaurar backup"
+            >
+              <Upload size={14} /> Restaurar
+            </button>
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-muted-foreground border border-border hover:text-foreground hover:border-muted-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary hidden sm:flex"
+              aria-label="Baixar backup"
+            >
+              <Download size={14} /> Backup
+            </button>
+            <button 
+              onClick={() => setIsResetOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors focus:outline-none focus:ring-1 focus:ring-destructive"
+              aria-label="Reiniciar torneio"
+            >
+              <RefreshCw size={14} /> Reset
+            </button>
+          </div>
         </div>
         
         <div className="bg-card/50 border-t border-border overflow-x-auto no-scrollbar">
@@ -92,7 +149,7 @@ function TournamentApp() {
         onClose={() => setIsResetOpen(false)} 
         onConfirm={state.resetTournament} 
         title="Reiniciar Torneio" 
-        message="Tem certeza que deseja apagar todos os resultados? Esta ação não pode ser desfeita."
+        message="Tem certeza que deseja apagar todos os resultados e a tabela atual? Esta ação não pode ser desfeita e todas as informações armazenadas localmente serão perdidas."
       />
     </div>
   );

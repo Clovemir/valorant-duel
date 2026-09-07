@@ -1,86 +1,56 @@
 export function RulesView() {
   return (
-    <div className="max-w-4xl space-y-8">
-      <div className="border-b border-border pb-4">
-         <h2 className="font-display text-3xl text-foreground uppercase tracking-wide">Regras do Torneio</h2>
-         <span className="text-sm font-display text-muted-foreground uppercase tracking-widest">Normas e Formato</span>
+    <div className="space-y-10 max-w-3xl">
+      <div>
+        <h2 className="font-display text-3xl text-foreground uppercase tracking-wide">Regras do Torneio</h2>
+        <span className="text-sm font-display text-muted-foreground uppercase tracking-widest">Formato e Inspiração</span>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <section className="bg-card border border-border p-6 shadow-sm">
-          <h3 className="font-display text-2xl text-primary mb-4 uppercase tracking-wide border-b border-border/50 pb-2">Formato</h3>
-          <ul className="space-y-3 text-muted-foreground text-sm">
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">▪</span>
-              <span><strong>Fase de Grupos:</strong> Todos jogam contra todos (Round Robin).</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">▪</span>
-              <span><strong>Vitória:</strong> Corrida até o alvo. Não há empate.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">▪</span>
-              <span>O vencedor deve atingir o alvo exato. O perdedor pontua abaixo do alvo.</span>
-            </li>
+
+      <div className="space-y-8 text-foreground/80 leading-relaxed">
+        <section className="space-y-3 border-l-2 border-primary pl-4">
+          <h3 className="font-display text-xl text-foreground uppercase tracking-wide">Inspiração VCT</h3>
+          <p>
+            O formato deste torneio foi fortemente inspirado nos princípios competitivos oficiais da Riot Games para o VCT (Valorant Champions Tour) das temporadas 2025 e 2026. Este é um formato não-oficial da comunidade, adaptado para um grupo de cinco amigos jogando 1 contra 1.
+          </p>
+          <p>
+            Ele emprega grupos para ranqueamento inicial, bonifica a consistência durante a temporada regular com vantagens de sementes (byes) na fase de Playoffs, e aumenta as apostas nas fases finais com alvos de pontuação maiores (simulando a mudança de Melhor de 3 para Melhor de 5 nos palcos internacionais).
+          </p>
+          <div className="text-sm text-muted-foreground mt-2 bg-muted/50 p-3">
+            <span className="font-semibold block mb-1">Fontes Oficiais Consultadas:</span>
+            <ul className="list-disc list-inside space-y-1">
+              <li><a href="https://valorantesports.com/news/vct-2025-season-start-eyntk" target="_blank" rel="noreferrer" className="text-primary hover:underline">VCT 2025 Season Start</a></li>
+              <li><a href="https://valorantesports.com/en-US/season/115571062868511862/handbook/115571062868708472" target="_blank" rel="noreferrer" className="text-primary hover:underline">Official 2026 Event Handbook</a></li>
+              <li><a href="https://valorantesports.com/en-GB/news/2026-vct-emea-stage-1-format-dates-and-tickets" target="_blank" rel="noreferrer" className="text-primary hover:underline">2026 VCT EMEA Format</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="font-display text-xl text-foreground uppercase tracking-wide">Fase de Grupos</h3>
+          <ul className="list-disc list-inside space-y-2">
+            <li>Os 5 jogadores se enfrentam exatamente uma vez (formato Round-Robin).</li>
+            <li>São realizadas 5 rodadas, cada uma contendo 2 partidas. A cada rodada, 1 jogador recebe uma folga.</li>
+            <li>A pontuação alvo para todas as partidas da fase de grupos é de <strong>15 pontos</strong>. Não pode haver empates, e o vencedor deve atingir exatamente 15.</li>
           </ul>
         </section>
 
-        <section className="bg-card border border-border p-6 shadow-sm">
-          <h3 className="font-display text-2xl text-primary mb-4 uppercase tracking-wide border-b border-border/50 pb-2">Alvos de Pontuação</h3>
-          <ul className="space-y-3 text-muted-foreground text-sm">
-            <li className="flex justify-between border-b border-border/30 pb-1">
-              <span>Fase de Grupos</span>
-              <strong className="text-foreground font-display text-lg tracking-wider">15 PTS</strong>
-            </li>
-            <li className="flex justify-between border-b border-border/30 pb-1">
-              <span>Repescagem</span>
-              <strong className="text-foreground font-display text-lg tracking-wider">20 PTS</strong>
-            </li>
-            <li className="flex justify-between border-b border-border/30 pb-1">
-              <span>Semifinais</span>
-              <strong className="text-foreground font-display text-lg tracking-wider">25 PTS</strong>
-            </li>
-            <li className="flex justify-between border-b border-border/30 pb-1">
-              <span>Terceiro Lugar</span>
-              <strong className="text-foreground font-display text-lg tracking-wider">20 PTS</strong>
-            </li>
-            <li className="flex justify-between pb-1 text-primary">
-              <span className="font-semibold uppercase tracking-widest">Grande Final</span>
-              <strong className="font-display text-xl tracking-wider">30 PTS</strong>
-            </li>
+        <section className="space-y-3">
+          <h3 className="font-display text-xl text-foreground uppercase tracking-wide">Fase de Entrada (Play-in)</h3>
+          <ul className="list-disc list-inside space-y-2">
+            <li>Os jogadores que encerrarem a fase de grupos nas posições 4 e 5 disputam a partida de Entrada (Play-in).</li>
+            <li>O vencedor garante a última vaga nos Playoffs. O perdedor é eliminado.</li>
+            <li>A pontuação alvo para o Play-in sobe para <strong>20 pontos</strong>.</li>
           </ul>
         </section>
 
-        <section className="bg-card border border-border p-6 shadow-sm">
-          <h3 className="font-display text-2xl text-primary mb-4 uppercase tracking-wide border-b border-border/50 pb-2">Chaveamento</h3>
-          <ul className="space-y-3 text-muted-foreground text-sm">
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">▪</span>
-              <span><strong>1º, 2º e 3º colocados:</strong> Avançam direto para as semifinais.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">▪</span>
-              <span><strong>4º vs 5º colocados:</strong> Disputam a Repescagem.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">▪</span>
-              <span><strong>Semifinal 1:</strong> 1º Colocado vs Vencedor da Repescagem.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary mt-1">▪</span>
-              <span><strong>Semifinal 2:</strong> 2º Colocado vs 3º Colocado.</span>
-            </li>
+        <section className="space-y-3">
+          <h3 className="font-display text-xl text-foreground uppercase tracking-wide">Playoffs (Eliminação Dupla)</h3>
+          <ul className="list-disc list-inside space-y-2">
+            <li>As posições 1, 2 e 3 da fase de grupos avançam diretamente para os Playoffs (recebendo byes).</li>
+            <li>O Seed 1 enfrenta o vencedor do Play-in. O Seed 2 enfrenta o Seed 3.</li>
+            <li>A pontuação alvo para todas as partidas da chave superior e inferior é de <strong>25 pontos</strong>.</li>
+            <li><strong>Regra da Casa - Grande Final:</strong> A Grande Final é disputada com alvo de <strong>30 pontos</strong>. Não há reinício de chave (bracket reset) caso o vencedor da chave inferior vença o primeiro jogo.</li>
           </ul>
-        </section>
-
-        <section className="bg-card border border-border p-6 shadow-sm">
-          <h3 className="font-display text-2xl text-primary mb-4 uppercase tracking-wide border-b border-border/50 pb-2">Critérios de Desempate</h3>
-          <ol className="space-y-3 text-muted-foreground text-sm list-decimal pl-5">
-            <li className="pl-2">Número de Vitórias</li>
-            <li className="pl-2">Saldo de Pontos (PF - PS)</li>
-            <li className="pl-2">Confronto Direto (se aplicável entre empatados)</li>
-            <li className="pl-2">Pontos Feitos (PF)</li>
-          </ol>
         </section>
       </div>
     </div>

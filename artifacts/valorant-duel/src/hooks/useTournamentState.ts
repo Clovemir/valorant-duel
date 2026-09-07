@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Player, MatchDef, MatchScore, GROUP_MATCHES, drawGroupMatches } from '@/lib/tournament';
+import { Player, MatchDef, MatchScore, drawGroupMatches, PLAYERS } from '@/lib/tournament';
 
 export interface PlayerStats {
   name: Player;
@@ -9,78 +9,97 @@ export interface PlayerStats {
   pf: number;
   pa: number;
   diff: number;
-  winRate: number;
+}
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  message: string;
+}
+
+function loadJSON<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function useTournamentState() {
-  const [groupMatches, setGroupMatches] = useState<MatchDef[]>(() => {
-    try {
-      const saved = localStorage.getItem('valorant_duel_schedule');
-      return saved ? JSON.parse(saved) : GROUP_MATCHES;
-    } catch {
-      return GROUP_MATCHES;
-    }
-  });
+  const [groupMatches, setGroupMatches] = useState<MatchDef[]>(() => loadJSON('valorant_duel_schedule', []));
+  const [scores, setScores] = useState<Record<string, MatchScore>>(() => loadJSON('valorant_duel_scores', {}));
+  const [groupByes, setGroupByes] = useState<Record<number, Player>>(() => loadJSON('valorant_duel_byes', {}));
+  const [logs, setLogs] = useState<LogEntry[]>(() => loadJSON('valorant_duel_logs', []));
 
-  const [scores, setScores] = useState<Record<string, MatchScore>>(() => {
-    try {
-      const saved = localStorage.getItem('valorant_duel_scores');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  useEffect(() => { localStorage.setItem('valorant_duel_schedule', JSON.stringify(groupMatches)); }, [groupMatches]);
+  useEffect(() => { localStorage.setItem('valorant_duel_scores', JSON.stringify(scores)); }, [scores]);
+  useEffect(() => { localStorage.setItem('valorant_duel_byes', JSON.stringify(groupByes)); }, [groupByes]);
+  useEffect(() => { localStorage.setItem('valorant_duel_logs', JSON.stringify(logs)); }, [logs]);
 
-  useEffect(() => {
-    localStorage.setItem('valorant_duel_scores', JSON.stringify(scores));
-  }, [scores]);
+  const addLog = useCallback((message: string) => {
+    setLogs(prev => {
+      const next = [{ id: Math.random().toString(36).substring(2, 9), timestamp: Date.now(), message }, ...prev];
+      return next.slice(0, 50);
+    });
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('valorant_duel_schedule', JSON.stringify(groupMatches));
-  }, [groupMatches]);
+  const clearLogs = useCallback(() => setLogs([]), []);
 
-  const updateScore = useCallback((id: string, score: MatchScore | null) => {
+  const updateScore = useCallback((match: MatchDef, score: MatchScore | null) => {
     setScores(prev => {
       const next = { ...prev };
       if (score === null) {
-        delete next[id];
+        delete next[match.id];
       } else {
-        next[id] = score;
+        next[match.id] = score;
       }
       
-      // Cascading deletes for upstream changes to ensure validity of bracket matches
-       if (groupMatches.find(m => m.id === id)) {
-        delete next['rep'];
-        delete next['semi1'];
-        delete next['semi2'];
-        delete next['third'];
-        delete next['final'];
-      } else if (id === 'rep') {
-        delete next['semi1'];
-        delete next['final'];
-        delete next['third'];
-      } else if (id === 'semi1' || id === 'semi2') {
-        delete next['final'];
-        delete next['third'];
+      if (score) {
+        const winner = score.p1Score > score.p2Score ? match.p1 : match.p2;
+        const loser = score.p1Score > score.p2Score ? match.p2 : match.p1;
+        const scoreStr = score.p1Score > score.p2Score ? `${score.p1Score} a ${score.p2Score}` : `${score.p2Score} a ${score.p1Score}`;
+        addLog(`${winner} venceu ${loser} por ${scoreStr}.`);
+      } else {
+        addLog(`Resultado de ${match.p1} vs ${match.p2} cancelado.`);
+      }
+
+      // Cascading deletes for upstream changes
+      const isGroup = match.phase === 'group';
+      if (isGroup) {
+        delete next['playin']; delete next['uppersa']; delete next['uppersb'];
+        delete next['upperfinal']; delete next['lowerround']; delete next['lowerfinal']; delete next['grandfinal'];
+      } else if (match.id === 'playin') {
+        delete next['uppersa']; delete next['upperfinal']; delete next['lowerround']; delete next['lowerfinal']; delete next['grandfinal'];
+      } else if (match.id === 'uppersa' || match.id === 'uppersb') {
+        delete next['upperfinal']; delete next['lowerround']; delete next['lowerfinal']; delete next['grandfinal'];
+      } else if (match.id === 'upperfinal' || match.id === 'lowerround') {
+        delete next['lowerfinal']; delete next['grandfinal'];
+      } else if (match.id === 'lowerfinal') {
+        delete next['grandfinal'];
       }
       return next;
     });
-  }, [groupMatches]);
+  }, [addLog]);
 
   const drawFirstPhase = useCallback(() => {
-    setGroupMatches(drawGroupMatches());
+    const { matches, byes } = drawGroupMatches();
+    setGroupMatches(matches);
+    setGroupByes(byes);
     setScores({});
-  }, []);
+    addLog(`Sorteio da Fase de Grupos realizado.`);
+  }, [addLog]);
 
   const resetTournament = useCallback(() => {
     setScores({});
-    setGroupMatches(GROUP_MATCHES);
+    setGroupMatches([]);
+    setGroupByes({});
+    setLogs([]);
   }, []);
 
   const stats: Record<string, PlayerStats> = {};
-  const PLAYERS: Player[] = ['Gol Bolinha', '0rochi', 'Solluty', 'Bufalo Bill', 'Christian'];
   PLAYERS.forEach(p => {
-    stats[p] = { name: p, played: 0, wins: 0, losses: 0, pf: 0, pa: 0, diff: 0, winRate: 0 };
+    stats[p] = { name: p, played: 0, wins: 0, losses: 0, pf: 0, pa: 0, diff: 0 };
   });
 
   let groupCompletedCount = 0;
@@ -101,69 +120,111 @@ export function useTournamentState() {
       } else {
         p2.wins++; p1.losses++;
       }
-      p1.winRate = (p1.wins / p1.played) * 100;
-      p2.winRate = (p2.wins / p2.played) * 100;
     }
   });
 
-  const standings = Object.values(stats).filter(s => s.name !== 'A definir').sort((a, b) => {
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    if (b.diff !== a.diff) return b.diff - a.diff;
-    // Head to head
-    const h2hMatch = groupMatches.find(m => (m.p1 === a.name && m.p2 === b.name) || (m.p1 === b.name && m.p2 === a.name));
-    if (h2hMatch && scores[h2hMatch.id]) {
-       const score = scores[h2hMatch.id];
-       const aScore = h2hMatch.p1 === a.name ? score.p1Score : score.p2Score;
-       const bScore = h2hMatch.p1 === b.name ? score.p1Score : score.p2Score;
-       if (aScore !== bScore) return bScore - aScore;
-    }
-    return b.pf - a.pf;
+  const rawStandings = Object.values(stats).filter(s => s.name !== 'A definir');
+  const winGroups: Record<number, PlayerStats[]> = {};
+  rawStandings.forEach(p => {
+    if (!winGroups[p.wins]) winGroups[p.wins] = [];
+    winGroups[p.wins].push(p);
   });
+  
+  const standings: PlayerStats[] = [];
+  const winsDesc = Object.keys(winGroups).map(Number).sort((a,b) => b-a);
+  
+  for (const w of winsDesc) {
+    const group = winGroups[w];
+    if (group.length === 1) {
+      standings.push(group[0]);
+    } else if (group.length === 2) {
+      group.sort((a, b) => {
+        const h2hMatch = groupMatches.find(m => (m.p1 === a.name && m.p2 === b.name) || (m.p1 === b.name && m.p2 === a.name));
+        if (h2hMatch && scores[h2hMatch.id]) {
+          const s = scores[h2hMatch.id];
+          const aScore = h2hMatch.p1 === a.name ? s.p1Score : s.p2Score;
+          const bScore = h2hMatch.p1 === b.name ? s.p1Score : s.p2Score;
+          if (aScore !== bScore) return bScore - aScore;
+        }
+        if (b.diff !== a.diff) return b.diff - a.diff;
+        if (b.pf !== a.pf) return b.pf - a.pf;
+        return a.name.localeCompare(b.name);
+      });
+      standings.push(...group);
+    } else {
+      group.sort((a, b) => {
+        if (b.diff !== a.diff) return b.diff - a.diff;
+        if (b.pf !== a.pf) return b.pf - a.pf;
+        return a.name.localeCompare(b.name);
+      });
+      standings.push(...group);
+    }
+  }
 
   const groupComplete = groupCompletedCount === 10;
-
   const bracketMatches: MatchDef[] = [];
   
-  const repP1 = groupComplete ? standings[3].name : 'A definir';
-  const repP2 = groupComplete ? standings[4].name : 'A definir';
-  bracketMatches.push({ id: 'rep', phase: 'repechage', p1: repP1, p2: repP2, target: 20 });
+  const playinP1 = groupComplete ? standings[3].name : 'A definir';
+  const playinP2 = groupComplete ? standings[4].name : 'A definir';
+  bracketMatches.push({ id: 'playin', phase: 'playin', p1: playinP1, p2: playinP2, target: 20 });
   
-  let repWinner: Player = 'A definir';
-  if (scores['rep'] && repP1 !== 'A definir' && repP2 !== 'A definir') {
-    repWinner = scores['rep'].p1Score === 20 ? repP1 : repP2;
+  let playinWinner: Player = 'A definir';
+  if (scores['playin'] && playinP1 !== 'A definir' && playinP2 !== 'A definir') {
+    playinWinner = scores['playin'].p1Score === 20 ? playinP1 : playinP2;
   }
 
-  const semi1P1 = groupComplete ? standings[0].name : 'A definir';
-  bracketMatches.push({ id: 'semi1', phase: 'semi', p1: semi1P1, p2: repWinner, target: 25 });
+  const uppersaP1 = groupComplete ? standings[0].name : 'A definir';
+  bracketMatches.push({ id: 'uppersa', phase: 'uppersa', p1: uppersaP1, p2: playinWinner, target: 25 });
   
-  const semi2P1 = groupComplete ? standings[1].name : 'A definir';
-  const semi2P2 = groupComplete ? standings[2].name : 'A definir';
-  bracketMatches.push({ id: 'semi2', phase: 'semi', p1: semi2P1, p2: semi2P2, target: 25 });
+  const uppersbP1 = groupComplete ? standings[1].name : 'A definir';
+  const uppersbP2 = groupComplete ? standings[2].name : 'A definir';
+  bracketMatches.push({ id: 'uppersb', phase: 'uppersb', p1: uppersbP1, p2: uppersbP2, target: 25 });
 
-  let semi1Winner: Player = 'A definir';
-  let semi1Loser: Player = 'A definir';
-  if (scores['semi1'] && semi1P1 !== 'A definir' && repWinner !== 'A definir') {
-    semi1Winner = scores['semi1'].p1Score === 25 ? semi1P1 : repWinner;
-    semi1Loser = scores['semi1'].p1Score === 25 ? repWinner : semi1P1;
+  let uppersaWinner: Player = 'A definir';
+  let uppersaLoser: Player = 'A definir';
+  if (scores['uppersa'] && uppersaP1 !== 'A definir' && playinWinner !== 'A definir') {
+    uppersaWinner = scores['uppersa'].p1Score === 25 ? uppersaP1 : playinWinner;
+    uppersaLoser = scores['uppersa'].p1Score === 25 ? playinWinner : uppersaP1;
   }
 
-  let semi2Winner: Player = 'A definir';
-  let semi2Loser: Player = 'A definir';
-  if (scores['semi2'] && semi2P1 !== 'A definir' && semi2P2 !== 'A definir') {
-    semi2Winner = scores['semi2'].p1Score === 25 ? semi2P1 : semi2P2;
-    semi2Loser = scores['semi2'].p1Score === 25 ? semi2P2 : semi2P1;
+  let uppersbWinner: Player = 'A definir';
+  let uppersbLoser: Player = 'A definir';
+  if (scores['uppersb'] && uppersbP1 !== 'A definir' && uppersbP2 !== 'A definir') {
+    uppersbWinner = scores['uppersb'].p1Score === 25 ? uppersbP1 : uppersbP2;
+    uppersbLoser = scores['uppersb'].p1Score === 25 ? uppersbP2 : uppersbP1;
   }
 
-  bracketMatches.push({ id: 'final', phase: 'final', p1: semi1Winner, p2: semi2Winner, target: 30 });
-  bracketMatches.push({ id: 'third', phase: 'third', p1: semi1Loser, p2: semi2Loser, target: 20 });
+  bracketMatches.push({ id: 'upperfinal', phase: 'upperfinal', p1: uppersaWinner, p2: uppersbWinner, target: 25 });
+  bracketMatches.push({ id: 'lowerround', phase: 'lowerround', p1: uppersaLoser, p2: uppersbLoser, target: 25 });
+
+  let upperfinalWinner: Player = 'A definir';
+  let upperfinalLoser: Player = 'A definir';
+  if (scores['upperfinal'] && uppersaWinner !== 'A definir' && uppersbWinner !== 'A definir') {
+    upperfinalWinner = scores['upperfinal'].p1Score === 25 ? uppersaWinner : uppersbWinner;
+    upperfinalLoser = scores['upperfinal'].p1Score === 25 ? uppersbWinner : uppersaWinner;
+  }
+
+  let lowerroundWinner: Player = 'A definir';
+  if (scores['lowerround'] && uppersaLoser !== 'A definir' && uppersbLoser !== 'A definir') {
+    lowerroundWinner = scores['lowerround'].p1Score === 25 ? uppersaLoser : uppersbLoser;
+  }
+
+  bracketMatches.push({ id: 'lowerfinal', phase: 'lowerfinal', p1: upperfinalLoser, p2: lowerroundWinner, target: 25 });
+
+  let lowerfinalWinner: Player = 'A definir';
+  if (scores['lowerfinal'] && upperfinalLoser !== 'A definir' && lowerroundWinner !== 'A definir') {
+    lowerfinalWinner = scores['lowerfinal'].p1Score === 25 ? upperfinalLoser : lowerroundWinner;
+  }
+
+  bracketMatches.push({ id: 'grandfinal', phase: 'grandfinal', p1: upperfinalWinner, p2: lowerfinalWinner, target: 30 });
 
   let champion: Player | null = null;
-  if (scores['final'] && semi1Winner !== 'A definir' && semi2Winner !== 'A definir') {
-    champion = scores['final'].p1Score === 30 ? semi1Winner : semi2Winner;
+  if (scores['grandfinal'] && upperfinalWinner !== 'A definir' && lowerfinalWinner !== 'A definir') {
+    champion = scores['grandfinal'].p1Score === 30 ? upperfinalWinner : lowerfinalWinner;
   }
 
-  const totalMatches = 15;
-  const completedMatches = groupCompletedCount + (scores['rep'] ? 1 : 0) + (scores['semi1'] ? 1 : 0) + (scores['semi2'] ? 1 : 0) + (scores['third'] ? 1 : 0) + (scores['final'] ? 1 : 0);
+  const totalMatches = 17; // 10 group + 7 bracket
+  const completedMatches = groupCompletedCount + Object.keys(scores).filter(k => k !== 'g1' && !k.startsWith('g')).length;
   const progress = Math.round((completedMatches / totalMatches) * 100);
 
   const allMatches = [...groupMatches, ...bracketMatches];
@@ -176,6 +237,7 @@ export function useTournamentState() {
   return {
     scores,
     groupMatches,
+    groupByes,
     updateScore,
     drawFirstPhase,
     resetTournament,
@@ -183,7 +245,9 @@ export function useTournamentState() {
     bracketMatches,
     champion,
     progress,
-    nextMatches
+    nextMatches,
+    logs,
+    clearLogs
   };
 }
 

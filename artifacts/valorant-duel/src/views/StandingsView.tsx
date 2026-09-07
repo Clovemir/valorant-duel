@@ -1,67 +1,74 @@
 import { TournamentState } from '@/hooks/useTournamentState';
 
 export function StandingsView({ state }: { state: TournamentState }) {
-  const { standings } = state;
+  const { standings, groupMatches } = state;
+  const isStarted = groupMatches.length > 0;
+
+  if (!isStarted) {
+    return (
+      <div className="text-center py-20 border border-border bg-card/30">
+        <h2 className="font-display text-2xl uppercase text-muted-foreground mb-2">Sem classificação</h2>
+        <p className="text-muted-foreground">Os confrontos ainda não foram sorteados.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-end border-b border-border pb-4">
-         <h2 className="font-display text-3xl text-foreground uppercase tracking-wide">Classificação</h2>
-         <span className="text-sm font-display text-muted-foreground uppercase tracking-widest">Fase de Grupos</span>
+    <div className="space-y-8">
+      <div>
+        <h2 className="font-display text-3xl text-foreground uppercase tracking-wide">Classificação</h2>
+        <span className="text-sm font-display text-muted-foreground uppercase tracking-widest">Fase de Grupos</span>
       </div>
 
-      <div className="overflow-x-auto border border-border bg-card shadow-sm">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted/50 text-muted-foreground uppercase font-display tracking-wider text-xs">
-            <tr>
-              <th className="px-6 py-4 font-normal">Pos</th>
-              <th className="px-6 py-4 font-normal">Jogador</th>
-              <th className="px-4 py-4 font-normal text-center">J</th>
-              <th className="px-4 py-4 font-normal text-center">V</th>
-              <th className="px-4 py-4 font-normal text-center">D</th>
-              <th className="px-4 py-4 font-normal text-center">PF</th>
-              <th className="px-4 py-4 font-normal text-center">PS</th>
-              <th className="px-4 py-4 font-normal text-center">Saldo</th>
-              <th className="px-6 py-4 font-normal text-center">% Vit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((s, i) => {
-              const isQualified = i < 3;
-              const isRepechage = i === 3 || i === 4;
-              
-              return (
-                <tr 
-                  key={s.name} 
-                  className={`border-t border-border hover:bg-muted/30 transition-colors ${i === 0 ? 'bg-primary/5' : ''}`}
-                >
-                  <td className="px-6 py-4 font-display text-lg">
-                    {i + 1}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-foreground">{s.name}</span>
-                      <span className="text-[10px] uppercase font-display tracking-widest mt-1">
-                        {isQualified ? <span className="text-primary">Qualificado (Semi)</span> : isRepechage ? <span className="text-yellow-500">Repescagem</span> : <span className="text-muted-foreground">Eliminado</span>}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center text-muted-foreground">{s.played}</td>
-                  <td className="px-4 py-4 text-center font-bold text-green-500">{s.wins}</td>
-                  <td className="px-4 py-4 text-center font-bold text-red-500">{s.losses}</td>
-                  <td className="px-4 py-4 text-center text-muted-foreground">{s.pf}</td>
-                  <td className="px-4 py-4 text-center text-muted-foreground">{s.pa}</td>
-                  <td className={`px-4 py-4 text-center font-bold font-display text-lg ${s.diff > 0 ? 'text-green-500' : s.diff < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                    {s.diff > 0 ? `+${s.diff}` : s.diff}
-                  </td>
-                  <td className="px-6 py-4 text-center font-bold">
-                    {s.played > 0 ? s.winRate.toFixed(0) : 0}%
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
+      <div className="border border-border bg-card overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[600px]">
+           <thead>
+             <tr className="border-b border-border bg-muted/50 font-display text-xs uppercase tracking-widest text-muted-foreground">
+               <th className="p-4 font-normal w-12 text-center">Pos</th>
+               <th className="p-4 font-normal">Jogador</th>
+               <th className="p-4 font-normal text-center w-16">V</th>
+               <th className="p-4 font-normal text-center w-16">D</th>
+               <th className="p-4 font-normal text-center w-16 hidden sm:table-cell">PF</th>
+               <th className="p-4 font-normal text-center w-16 hidden sm:table-cell">PS</th>
+               <th className="p-4 font-normal text-center w-16">SD</th>
+               <th className="p-4 font-normal text-center w-32">Seed</th>
+             </tr>
+           </thead>
+           <tbody>
+             {standings.map((s, i) => {
+                const seed = i + 1;
+                let seedText = '';
+                let seedColor = '';
+                if (seed === 1) { seedText = 'Seed 1 (Semi Sup)'; seedColor = 'text-primary'; }
+                else if (seed === 2 || seed === 3) { seedText = `Seed ${seed} (Semi Sup)`; seedColor = 'text-primary'; }
+                else if (seed === 4 || seed === 5) { seedText = `Seed ${seed} (Entrada)`; seedColor = 'text-muted-foreground'; }
+
+                return (
+                  <tr key={s.name} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-mono text-muted-foreground text-center">{seed}°</td>
+                    <td className="p-4 font-semibold">{s.name}</td>
+                    <td className="p-4 text-center font-mono">{s.wins}</td>
+                    <td className="p-4 text-center font-mono">{s.losses}</td>
+                    <td className="p-4 text-center font-mono text-muted-foreground hidden sm:table-cell">{s.pf}</td>
+                    <td className="p-4 text-center font-mono text-muted-foreground hidden sm:table-cell">{s.pa}</td>
+                    <td className="p-4 text-center font-mono font-medium">{s.diff > 0 ? `+${s.diff}` : s.diff}</td>
+                    <td className={`p-4 text-center text-xs font-display uppercase tracking-wider ${seedColor}`}>{seedText}</td>
+                  </tr>
+                );
+             })}
+           </tbody>
         </table>
+      </div>
+
+      <div className="bg-card/50 border border-border/50 p-4 text-sm text-muted-foreground">
+        <h4 className="font-display uppercase text-foreground mb-2 tracking-widest">Critérios de Desempate</h4>
+        <ol className="list-decimal list-inside space-y-1 ml-1">
+          <li>Maior número de Vitórias</li>
+          <li>Confronto Direto (aplicado apenas em empates entre exatamente 2 jogadores)</li>
+          <li>Saldo de Pontos (SD)</li>
+          <li>Pontos Feitos (PF)</li>
+          <li>Ordem alfabética do nome do jogador</li>
+        </ol>
       </div>
     </div>
   );
