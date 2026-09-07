@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Player, MatchDef, MatchScore, GROUP_MATCHES } from '@/lib/tournament';
+import { Player, MatchDef, MatchScore, GROUP_MATCHES, drawGroupMatches } from '@/lib/tournament';
 
 export interface PlayerStats {
   name: Player;
@@ -13,6 +13,15 @@ export interface PlayerStats {
 }
 
 export function useTournamentState() {
+  const [groupMatches, setGroupMatches] = useState<MatchDef[]>(() => {
+    try {
+      const saved = localStorage.getItem('valorant_duel_schedule');
+      return saved ? JSON.parse(saved) : GROUP_MATCHES;
+    } catch {
+      return GROUP_MATCHES;
+    }
+  });
+
   const [scores, setScores] = useState<Record<string, MatchScore>>(() => {
     try {
       const saved = localStorage.getItem('valorant_duel_scores');
@@ -26,6 +35,10 @@ export function useTournamentState() {
     localStorage.setItem('valorant_duel_scores', JSON.stringify(scores));
   }, [scores]);
 
+  useEffect(() => {
+    localStorage.setItem('valorant_duel_schedule', JSON.stringify(groupMatches));
+  }, [groupMatches]);
+
   const updateScore = useCallback((id: string, score: MatchScore | null) => {
     setScores(prev => {
       const next = { ...prev };
@@ -36,7 +49,7 @@ export function useTournamentState() {
       }
       
       // Cascading deletes for upstream changes to ensure validity of bracket matches
-      if (GROUP_MATCHES.find(m => m.id === id)) {
+       if (groupMatches.find(m => m.id === id)) {
         delete next['rep'];
         delete next['semi1'];
         delete next['semi2'];
@@ -52,10 +65,16 @@ export function useTournamentState() {
       }
       return next;
     });
+  }, [groupMatches]);
+
+  const drawFirstPhase = useCallback(() => {
+    setGroupMatches(drawGroupMatches());
+    setScores({});
   }, []);
 
   const resetTournament = useCallback(() => {
     setScores({});
+    setGroupMatches(GROUP_MATCHES);
   }, []);
 
   const stats: Record<string, PlayerStats> = {};
@@ -66,7 +85,7 @@ export function useTournamentState() {
 
   let groupCompletedCount = 0;
 
-  GROUP_MATCHES.forEach(m => {
+  groupMatches.forEach(m => {
     const s = scores[m.id];
     if (s) {
       groupCompletedCount++;
@@ -91,7 +110,7 @@ export function useTournamentState() {
     if (b.wins !== a.wins) return b.wins - a.wins;
     if (b.diff !== a.diff) return b.diff - a.diff;
     // Head to head
-    const h2hMatch = GROUP_MATCHES.find(m => (m.p1 === a.name && m.p2 === b.name) || (m.p1 === b.name && m.p2 === a.name));
+    const h2hMatch = groupMatches.find(m => (m.p1 === a.name && m.p2 === b.name) || (m.p1 === b.name && m.p2 === a.name));
     if (h2hMatch && scores[h2hMatch.id]) {
        const score = scores[h2hMatch.id];
        const aScore = h2hMatch.p1 === a.name ? score.p1Score : score.p2Score;
@@ -147,7 +166,7 @@ export function useTournamentState() {
   const completedMatches = groupCompletedCount + (scores['rep'] ? 1 : 0) + (scores['semi1'] ? 1 : 0) + (scores['semi2'] ? 1 : 0) + (scores['third'] ? 1 : 0) + (scores['final'] ? 1 : 0);
   const progress = Math.round((completedMatches / totalMatches) * 100);
 
-  const allMatches = [...GROUP_MATCHES, ...bracketMatches];
+  const allMatches = [...groupMatches, ...bracketMatches];
   const nextMatches = allMatches.filter(m => 
     m.p1 !== 'A definir' && 
     m.p2 !== 'A definir' && 
@@ -156,7 +175,9 @@ export function useTournamentState() {
 
   return {
     scores,
+    groupMatches,
     updateScore,
+    drawFirstPhase,
     resetTournament,
     standings,
     bracketMatches,

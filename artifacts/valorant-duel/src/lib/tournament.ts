@@ -30,6 +30,37 @@ export const GROUP_MATCHES: MatchDef[] = [
   { id: 'g10', phase: 'group', round: 5, p1: 'Bufalo Bill', p2: 'Christian', target: 15 },
 ];
 
+export function drawGroupMatches(): MatchDef[] {
+  const shuffled = [...PLAYERS].sort(() => Math.random() - 0.5);
+  const rotation: Array<Player | null> = [...shuffled, null];
+  const matches: MatchDef[] = [];
+  let matchIndex = 1;
+
+  for (let round = 1; round <= 5; round++) {
+    for (let pair = 0; pair < 3; pair++) {
+      const first = rotation[pair];
+      const second = rotation[rotation.length - 1 - pair];
+
+      if (first && second) {
+        const swapSides = Math.random() > 0.5;
+        matches.push({
+          id: `g${matchIndex}`,
+          phase: 'group',
+          round,
+          p1: swapSides ? second : first,
+          p2: swapSides ? first : second,
+          target: 15,
+        });
+        matchIndex++;
+      }
+    }
+
+    rotation.splice(1, 0, rotation.pop()!);
+  }
+
+  return matches;
+}
+
 export function validateScore(p1Score: number, p2Score: number, target: number): string | null {
   if (isNaN(p1Score) || isNaN(p2Score)) return "Insira números válidos.";
   if (p1Score < 0 || p2Score < 0) return "A pontuação não pode ser negativa.";
