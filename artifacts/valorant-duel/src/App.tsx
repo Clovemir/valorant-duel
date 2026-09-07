@@ -43,14 +43,14 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
   variables: {
-    colorPrimary: "hsl(350, 89%, 60%)",
-    colorForeground: "hsl(0, 0%, 98%)",
-    colorMutedForeground: "hsl(240, 5%, 60%)",
+    colorPrimary: "hsl(350, 100%, 64%)",
+    colorForeground: "hsl(40, 21%, 95%)",
+    colorMutedForeground: "hsl(225, 10%, 65%)",
     colorDanger: "hsl(0, 84%, 60%)",
-    colorBackground: "hsl(240, 10%, 9%)",
-    colorInput: "hsl(240, 10%, 6%)",
-    colorInputForeground: "hsl(0, 0%, 98%)",
-    colorNeutral: "hsl(240, 10%, 16%)",
+    colorBackground: "hsl(225, 14%, 7%)",
+    colorInput: "hsl(225, 14%, 11%)",
+    colorInputForeground: "hsl(40, 21%, 95%)",
+    colorNeutral: "hsl(225, 14%, 20%)",
     fontFamily: "'Inter', sans-serif",
     borderRadius: "0px",
   },
@@ -103,32 +103,35 @@ function Header() {
   const { signOut } = useClerk();
   
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-10 shadow-md">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
-           <div className="w-8 h-8 bg-primary val-clip-tl group-hover:bg-white transition-colors"></div>
-           <h1 className="font-display text-2xl uppercase tracking-widest text-foreground mt-1">
-             Valorant <span className="text-primary group-hover:text-white transition-colors">Duel</span>
+    <header className="bg-background/90 backdrop-blur-md border-b border-border/50 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 md:gap-4 group shrink-0">
+           <div className="relative w-6 h-6 md:w-8 md:h-8 bg-primary val-clip-tl group-hover:bg-accent transition-colors shrink-0">
+             <div className="absolute inset-1 border border-background/20 val-clip-tl"></div>
+           </div>
+           <h1 className="font-display text-base sm:text-xl md:text-3xl uppercase tracking-widest md:tracking-[0.2em] text-foreground mt-1 whitespace-nowrap">
+             HUB TÁTICO <span className="text-primary group-hover:text-accent transition-colors hidden sm:inline">//</span>
            </h1>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 md:gap-6 shrink-0">
           <Show when="signed-out">
-            <Link href="/sign-in" className="font-display uppercase text-sm tracking-widest hover:text-primary transition-colors">
-              Entrar
+            <Link href="/sign-in" className="font-display uppercase text-[10px] md:text-sm tracking-widest hover:text-primary transition-colors">
+              Acesso
             </Link>
-            <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-white px-4 py-2 font-display uppercase text-sm tracking-widest val-clip-br transition-colors">
-              Cadastro de Organizador
+            <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 md:px-6 md:py-3 font-display uppercase text-[10px] md:text-sm tracking-widest val-clip-br transition-all">
+              Alistamento
             </Link>
           </Show>
           <Show when="signed-in">
-             <Link href="/tournaments/new" className="font-display uppercase text-sm tracking-widest text-muted-foreground hover:text-white transition-colors hidden sm:block">
-               Novo Torneio
+             <Link href="/tournaments/new" className="font-display uppercase text-[10px] md:text-sm tracking-widest text-muted-foreground hover:text-foreground transition-colors hidden md:block">
+               Nova Operação
              </Link>
              <button
                onClick={() => signOut({ redirectUrl: basePath || "/" })}
-               className="font-display uppercase text-sm tracking-widest hover:text-primary transition-colors border border-border px-4 py-1.5 val-clip-br"
+               className="font-display uppercase text-[10px] md:text-sm tracking-widest text-muted-foreground hover:text-destructive transition-colors border border-border hover:border-destructive/50 px-3 py-1.5 md:px-6 md:py-2.5 val-clip-tl"
              >
-               Sair
+               <span className="sm:hidden">Sair</span>
+               <span className="hidden sm:inline">Desconectar</span>
              </button>
           </Show>
         </div>
@@ -139,9 +142,10 @@ function Header() {
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background text-foreground">
+    <div className="min-h-[100dvh] flex flex-col bg-background text-foreground relative">
+      <div className="bg-noise" />
       <Header />
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6 md:py-10 animate-in fade-in duration-300">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-10 md:py-16 animate-in fade-in duration-300 relative z-10">
         {children}
       </main>
     </div>
