@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: tournaments
+    description: Tournament organization and public participation
 paths:
   /healthz:
     get:
@@ -24,7 +26,145 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /tournaments:
+    get:
+      operationId: listTournaments
+      tags: [tournaments]
+      summary: List tournaments owned by the signed-in organizer
+      responses:
+        "200":
+          description: Organizer tournaments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TournamentSummary"
+    post:
+      operationId: createTournament
+      tags: [tournaments]
+      summary: Create a tournament
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TournamentInput"
+      responses:
+        "201":
+          description: Tournament created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TournamentDetail"
+  /tournaments/{slug}:
+    get:
+      operationId: getTournament
+      tags: [tournaments]
+      summary: Get a public tournament
+      parameters:
+        - $ref: "#/components/parameters/TournamentSlug"
+      responses:
+        "200":
+          description: Tournament detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TournamentDetail"
+        "404":
+          description: Tournament not found
+  /tournaments/{slug}/registrations:
+    post:
+      operationId: registerParticipant
+      tags: [tournaments]
+      summary: Submit a public tournament registration
+      parameters:
+        - $ref: "#/components/parameters/TournamentSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationInput"
+      responses:
+        "201":
+          description: Registration submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participant"
+  /tournaments/{slug}/participants/{participantId}:
+    patch:
+      operationId: updateParticipant
+      tags: [tournaments]
+      summary: Approve, reject, or edit a participant
+      parameters:
+        - $ref: "#/components/parameters/TournamentSlug"
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantUpdate"
+      responses:
+        "200":
+          description: Participant updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participant"
+  /tournaments/{slug}/start:
+    post:
+      operationId: startTournament
+      tags: [tournaments]
+      summary: Lock registrations and generate the competition format
+      parameters:
+        - $ref: "#/components/parameters/TournamentSlug"
+      responses:
+        "200":
+          description: Tournament started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TournamentDetail"
+  /tournaments/{slug}/matches/{matchId}:
+    patch:
+      operationId: updateTournamentMatch
+      tags: [tournaments]
+      summary: Record or edit a match result
+      parameters:
+        - $ref: "#/components/parameters/TournamentSlug"
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchResultInput"
+      responses:
+        "200":
+          description: Match updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TournamentMatch"
 components:
+  parameters:
+    TournamentSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +173,109 @@ components:
           type: string
       required:
         - status
+    TournamentStatus:
+      type: string
+      enum: [registration, active, completed]
+    TournamentFormat:
+      type: string
+      enum: [round_robin, swiss]
+    ParticipantStatus:
+      type: string
+      enum: [pending, approved, rejected]
+    MatchStatus:
+      type: string
+      enum: [pending, ready, completed]
+    TournamentSummary:
+      type: object
+      required: [id, slug, name, status, participantCount, createdAt]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        status: { $ref: "#/components/schemas/TournamentStatus" }
+        participantCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    TournamentInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 80 }
+        registrationDeadline: { type: ["string", "null"], format: date-time }
+        maxParticipants: { type: ["integer", "null"], minimum: 3, maximum: 128 }
+    RegistrationInput:
+      type: object
+      required: [nickname]
+      properties:
+        nickname: { type: string, minLength: 2, maxLength: 32 }
+    ParticipantUpdate:
+      type: object
+      properties:
+        nickname: { type: string, minLength: 2, maxLength: 32 }
+        status: { $ref: "#/components/schemas/ParticipantStatus" }
+    MatchResultInput:
+      type: object
+      required: [player1Score, player2Score]
+      properties:
+        player1Score: { type: integer, minimum: 0 }
+        player2Score: { type: integer, minimum: 0 }
+    Participant:
+      type: object
+      required: [id, nickname, status, seed, createdAt]
+      properties:
+        id: { type: integer }
+        nickname: { type: string }
+        status: { $ref: "#/components/schemas/ParticipantStatus" }
+        seed: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+    TournamentMatch:
+      type: object
+      required: [id, stage, round, status, targetScore, player1Id, player2Id, player1Name, player2Name, player1Score, player2Score]
+      properties:
+        id: { type: integer }
+        stage: { type: string }
+        round: { type: integer }
+        status: { $ref: "#/components/schemas/MatchStatus" }
+        targetScore: { type: integer }
+        player1Id: { type: ["integer", "null"] }
+        player2Id: { type: ["integer", "null"] }
+        player1Name: { type: ["string", "null"] }
+        player2Name: { type: ["string", "null"] }
+        player1Score: { type: ["integer", "null"] }
+        player2Score: { type: ["integer", "null"] }
+    Standing:
+      type: object
+      required: [participantId, nickname, played, wins, losses, pointsFor, pointsAgainst, differential, rank]
+      properties:
+        participantId: { type: integer }
+        nickname: { type: string }
+        played: { type: integer }
+        wins: { type: integer }
+        losses: { type: integer }
+        pointsFor: { type: integer }
+        pointsAgainst: { type: integer }
+        differential: { type: integer }
+        rank: { type: integer }
+    TournamentDetail:
+      type: object
+      required: [id, slug, name, status, format, swissRounds, isOrganizer, participants, matches, standings, createdAt]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        status: { $ref: "#/components/schemas/TournamentStatus" }
+        format: { type: ["string", "null"], enum: [round_robin, swiss, null] }
+        swissRounds: { type: ["integer", "null"] }
+        registrationDeadline: { type: ["string", "null"], format: date-time }
+        maxParticipants: { type: ["integer", "null"] }
+        isOrganizer: { type: boolean }
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/Participant" }
+        matches:
+          type: array
+          items: { $ref: "#/components/schemas/TournamentMatch" }
+        standings:
+          type: array
+          items: { $ref: "#/components/schemas/Standing" }
+        createdAt: { type: string, format: date-time }
 

@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface MatchResultInput {
+  /** @minimum 0 */
+  player1Score: number;
+  /** @minimum 0 */
+  player2Score: number;
 }

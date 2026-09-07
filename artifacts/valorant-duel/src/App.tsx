@@ -1,169 +1,259 @@
-import { useState, useRef } from 'react';
-import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import { RefreshCw, LayoutDashboard, Swords, ListOrdered, GitMerge, FileText, Download, Upload } from 'lucide-react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useRef } from "react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
+import { Switch, Route, useLocation, Router as WouterRouter, Link } from 'wouter';
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 
-import { useTournamentState } from '@/hooks/useTournamentState';
-import { OverviewView } from '@/views/OverviewView';
-import { MatchesView } from '@/views/MatchesView';
-import { StandingsView } from '@/views/StandingsView';
-import { BracketView } from '@/views/BracketView';
-import { RulesView } from '@/views/RulesView';
-import { ConfirmModal } from '@/components/ConfirmModal';
+import { LandingView } from './views/LandingView';
+import { DashboardView } from './views/DashboardView';
+import { TournamentCreateView } from './views/TournamentCreateView';
+import { TournamentDetailView } from './views/TournamentDetailView';
+import { TournamentManageView } from './views/TournamentManageView';
 
 const queryClient = new QueryClient();
 
-function TournamentApp() {
-  const [location, setLocation] = useLocation();
-  const [isResetOpen, setIsResetOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function stripBase(path: string): string {
+  return basePath && path.startsWith(basePath)
+    ? path.slice(basePath.length) || "/"
+    : path;
+}
+
+if (!clerkPubKey) {
+  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
+}
+
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: "clerk",
+  options: {
+    logoPlacement: "inside" as const,
+    logoLinkUrl: basePath || "/",
+    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+  },
+  variables: {
+    colorPrimary: "hsl(350, 89%, 60%)",
+    colorForeground: "hsl(0, 0%, 98%)",
+    colorMutedForeground: "hsl(240, 5%, 60%)",
+    colorDanger: "hsl(0, 84%, 60%)",
+    colorBackground: "hsl(240, 10%, 9%)",
+    colorInput: "hsl(240, 10%, 6%)",
+    colorInputForeground: "hsl(0, 0%, 98%)",
+    colorNeutral: "hsl(240, 10%, 16%)",
+    fontFamily: "'Inter', sans-serif",
+    borderRadius: "0px",
+  },
+  elements: {
+    rootBox: "w-full flex justify-center",
+    cardBox: "bg-card border-border border val-clip-tl w-[440px] max-w-full overflow-hidden rounded-none p-6",
+    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    headerTitle: "font-display uppercase tracking-widest text-2xl text-foreground",
+    headerSubtitle: "text-muted-foreground",
+    socialButtonsBlockButtonText: "font-display uppercase tracking-wider text-sm",
+    formFieldLabel: "font-display uppercase text-xs tracking-wider text-muted-foreground",
+    footerActionLink: "text-primary hover:text-primary/80 font-display uppercase tracking-wider text-xs",
+    footerActionText: "text-muted-foreground font-display uppercase text-xs",
+    dividerText: "text-muted-foreground font-display uppercase text-xs tracking-wider",
+    identityPreviewEditButton: "text-primary hover:text-primary/80",
+    formFieldSuccessText: "text-primary",
+    alertText: "text-destructive",
+    logoBox: "mb-4",
+    logoImage: "h-12 w-auto",
+    socialButtonsBlockButton: "border border-border hover:bg-muted text-foreground !rounded-none",
+    formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90 font-display uppercase tracking-widest !rounded-none val-clip-br",
+    formFieldInput: "bg-background border-border text-foreground focus:border-primary !rounded-none",
+    footerAction: "mt-6",
+    dividerLine: "bg-border",
+    alert: "bg-destructive/10 border-destructive/20 border text-destructive",
+    otpCodeFieldInput: "bg-background border-border text-foreground !rounded-none",
+    formFieldRow: "mb-4",
+    main: "w-full",
+  },
+};
+
+function SignInPage() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+    </div>
+  );
+}
+
+function SignUpPage() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+    </div>
+  );
+}
+
+function Header() {
+  const { signOut } = useClerk();
   
-  const state = useTournamentState();
-  const currentView = location === '/' ? 'overview' : location.slice(1);
-  
-  const tabs = [
-    { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
-    { id: 'matches', label: 'Partidas', icon: Swords },
-    { id: 'standings', label: 'Classificação', icon: ListOrdered },
-    { id: 'bracket', label: 'Chaveamento', icon: GitMerge },
-    { id: 'rules', label: 'Regras', icon: FileText }
-  ];
+  return (
+    <header className="bg-card border-b border-border sticky top-0 z-10 shadow-md">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3 group">
+           <div className="w-8 h-8 bg-primary val-clip-tl group-hover:bg-white transition-colors"></div>
+           <h1 className="font-display text-2xl uppercase tracking-widest text-foreground mt-1">
+             Valorant <span className="text-primary group-hover:text-white transition-colors">Duel</span>
+           </h1>
+        </Link>
+        <div className="flex items-center gap-4">
+          <Show when="signed-out">
+            <Link href="/sign-in" className="font-display uppercase text-sm tracking-widest hover:text-primary transition-colors">
+              Entrar
+            </Link>
+            <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-white px-4 py-2 font-display uppercase text-sm tracking-widest val-clip-br transition-colors">
+              Cadastro de Organizador
+            </Link>
+          </Show>
+          <Show when="signed-in">
+             <Link href="/tournaments/new" className="font-display uppercase text-sm tracking-widest text-muted-foreground hover:text-white transition-colors hidden sm:block">
+               Novo Torneio
+             </Link>
+             <button
+               onClick={() => signOut({ redirectUrl: basePath || "/" })}
+               className="font-display uppercase text-sm tracking-widest hover:text-primary transition-colors border border-border px-4 py-1.5 val-clip-br"
+             >
+               Sair
+             </button>
+          </Show>
+        </div>
+      </div>
+    </header>
+  );
+}
 
-  const handleExport = () => {
-    const data = {
-      schedule: localStorage.getItem('valorant_duel_schedule'),
-      scores: localStorage.getItem('valorant_duel_scores'),
-      byes: localStorage.getItem('valorant_duel_byes'),
-      logs: localStorage.getItem('valorant_duel_logs')
-    };
-    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `valorant_duel_backup_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-  };
-
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-         const data = JSON.parse(event.target?.result as string);
-         if (data.schedule) localStorage.setItem('valorant_duel_schedule', data.schedule);
-         if (data.scores) localStorage.setItem('valorant_duel_scores', data.scores);
-         if (data.byes) localStorage.setItem('valorant_duel_byes', data.byes);
-         if (data.logs) localStorage.setItem('valorant_duel_logs', data.logs);
-         window.location.reload();
-      } catch {
-         alert("Arquivo de backup inválido.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
+function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background text-foreground">
-      <header className="bg-card border-b border-border sticky top-0 z-10 shadow-md">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-primary val-clip-tl"></div>
-             <h1 className="font-display text-2xl uppercase tracking-widest text-foreground mt-1">
-               Valorant <span className="text-primary">Duel</span>
-             </h1>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <input 
-              type="file" 
-              accept=".json" 
-              className="hidden" 
-              ref={fileInputRef} 
-              onChange={handleImport} 
-            />
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-muted-foreground border border-border hover:text-foreground hover:border-muted-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary hidden sm:flex"
-              aria-label="Restaurar backup"
-            >
-              <Upload size={14} /> Restaurar
-            </button>
-            <button 
-              onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-muted-foreground border border-border hover:text-foreground hover:border-muted-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary hidden sm:flex"
-              aria-label="Baixar backup"
-            >
-              <Download size={14} /> Backup
-            </button>
-            <button 
-              onClick={() => setIsResetOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-display uppercase tracking-wider text-muted-foreground border border-border hover:text-destructive hover:border-destructive transition-colors focus:outline-none focus:ring-1 focus:ring-destructive"
-              aria-label="Reiniciar torneio"
-            >
-              <RefreshCw size={14} /> Reset
-            </button>
-          </div>
-        </div>
-        
-        <div className="bg-card/50 border-t border-border overflow-x-auto no-scrollbar">
-          <div className="max-w-6xl mx-auto flex px-4">
-            {tabs.map(t => {
-               const Icon = t.icon;
-               return (
-                 <button 
-                   key={t.id} 
-                   className={`flex items-center gap-2 px-6 py-4 font-display uppercase tracking-wider text-sm whitespace-nowrap border-b-2 transition-colors focus:outline-none focus-visible:bg-muted ${currentView === t.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30'}`}
-                   onClick={() => setLocation(t.id === 'overview' ? '/' : `/${t.id}`)}
-                 >
-                   <Icon size={16} /> {t.label}
-                 </button>
-               );
-            })}
-          </div>
-        </div>
-      </header>
+      <Header />
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6 md:py-10 animate-in fade-in duration-300">
+        {children}
+      </main>
+    </div>
+  );
+}
 
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 lg:p-8">
-        <div className="animate-in fade-in duration-300">
+function HomeRedirect() {
+  return (
+    <>
+      <Show when="signed-in">
+        <DashboardView />
+      </Show>
+      <Show when="signed-out">
+        <LandingView />
+      </Show>
+    </>
+  );
+}
+
+function ClerkQueryClientCacheInvalidator() {
+  const { addListener } = useClerk();
+  const queryClient = useQueryClient();
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const unsubscribe = addListener(({ user }) => {
+      const userId = user?.id ?? null;
+      if (
+        prevUserIdRef.current !== undefined &&
+        prevUserIdRef.current !== userId
+      ) {
+        queryClient.clear();
+      }
+      prevUserIdRef.current = userId;
+    });
+    return unsubscribe;
+  }, [addListener, queryClient]);
+
+  return null;
+}
+
+function ClerkProviderWithRoutes() {
+  const [, setLocation] = useLocation();
+
+  return (
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      localization={{
+        signIn: {
+          start: {
+            title: "Portal do Organizador",
+            subtitle: "Entre para gerenciar seus torneios",
+          },
+        },
+        signUp: {
+          start: {
+            title: "Criar Conta de Organizador",
+            subtitle: "Inicie seu hub de torneios hoje",
+          },
+        },
+      }}
+      routerPush={(to) => setLocation(stripBase(to))}
+      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    >
+      <QueryClientProvider client={queryClient}>
+        <ClerkQueryClientCacheInvalidator />
+        <TooltipProvider>
           <Switch>
-            <Route path="/" component={() => <OverviewView state={state} />} />
-            <Route path="/overview" component={() => <OverviewView state={state} />} />
-            <Route path="/matches" component={() => <MatchesView state={state} />} />
-            <Route path="/standings" component={() => <StandingsView state={state} />} />
-            <Route path="/bracket" component={() => <BracketView state={state} />} />
-            <Route path="/rules" component={() => <RulesView />} />
+            <Route path="/sign-in/*?" component={SignInPage} />
+            <Route path="/sign-up/*?" component={SignUpPage} />
+            
+            <Route path="/">
+              <MainLayout><HomeRedirect /></MainLayout>
+            </Route>
+            <Route path="/tournaments/new">
+              <MainLayout>
+                <Show when="signed-in"><TournamentCreateView /></Show>
+                <Show when="signed-out"><DashboardView /></Show>
+              </MainLayout>
+            </Route>
+            <Route path="/t/:slug">
+              <MainLayout><TournamentDetailView /></MainLayout>
+            </Route>
+            <Route path="/t/:slug/manage">
+              <MainLayout>
+                <Show when="signed-in"><TournamentManageView /></Show>
+                <Show when="signed-out"><DashboardView /></Show>
+              </MainLayout>
+            </Route>
             <Route>
-               <div className="text-center py-20">
+              <MainLayout>
+                <div className="text-center py-20">
                   <h2 className="font-display text-4xl text-muted-foreground">Página não encontrada</h2>
-               </div>
+                </div>
+              </MainLayout>
             </Route>
           </Switch>
-        </div>
-      </main>
-
-      <ConfirmModal 
-        isOpen={isResetOpen} 
-        onClose={() => setIsResetOpen(false)} 
-        onConfirm={state.resetTournament} 
-        title="Reiniciar Torneio" 
-        message="Tem certeza que deseja apagar todos os resultados e a tabela atual? Esta ação não pode ser desfeita e todas as informações armazenadas localmente serão perdidas."
-      />
-    </div>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <TournamentApp />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <WouterRouter base={basePath}>
+      <ClerkProviderWithRoutes />
+    </WouterRouter>
   );
 }
