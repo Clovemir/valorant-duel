@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dices, SlidersHorizontal, X } from 'lucide-react';
+import { Dices, SlidersHorizontal, X, Check } from 'lucide-react';
 import { TournamentState } from '@/hooks/useTournamentState';
 import { MatchCard } from '@/components/MatchCard';
 import { ConfirmModal } from '@/components/ConfirmModal';
@@ -26,6 +26,7 @@ export function MatchesView({ state }: { state: TournamentState }) {
   const [manualRounds, setManualRounds] = useState<ManualRound[]>(() => toManualRounds(groupMatches));
   const [manualError, setManualError] = useState('');
   const [manualCandidate, setManualCandidate] = useState<{ matches: MatchDef[]; byes: Record<number, Player> } | null>(null);
+  
   const rounds = [1, 2, 3, 4, 5];
   const hasResults = groupMatches.some(match => scores[match.id]);
   const isDrawn = groupMatches.length > 0;
@@ -100,65 +101,89 @@ export function MatchesView({ state }: { state: TournamentState }) {
     setIsManualOpen(false);
   };
 
+  const isRoundComplete = (r: number) => {
+    if (!isDrawn) return false;
+    const roundMatches = groupMatches.filter(m => m.round === r);
+    return roundMatches.every(m => scores[m.id]);
+  };
+
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
          <div>
            <h2 className="font-display text-3xl text-foreground uppercase tracking-wide">Fase de Grupos</h2>
-           <span className="text-sm font-display text-muted-foreground uppercase tracking-widest">Formato todos contra todos</span>
+           <span className="text-sm font-display text-muted-foreground uppercase tracking-widest">Formato Round Robin</span>
          </div>
-         <div className="flex flex-col gap-2 sm:flex-row">
+         <div className="flex flex-col gap-3 sm:flex-row">
            <button
              type="button"
              onClick={openManualEditor}
              className="flex items-center justify-center gap-2 border border-border bg-card px-5 py-3 font-display text-sm uppercase tracking-widest text-foreground transition hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
            >
-             <SlidersHorizontal size={18} />
-             Montar manualmente
+             <SlidersHorizontal size={16} />
+             <span>Montar Manualmente</span>
            </button>
            <button
              type="button"
              onClick={handleDraw}
              className="val-clip-br flex items-center justify-center gap-2 bg-primary px-5 py-3 font-display text-sm uppercase tracking-widest text-primary-foreground transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
            >
-             <Dices size={18} />
-             {isDrawn ? 'Sortear Novamente' : 'Sortear Confrontos'}
+             <Dices size={16} />
+             <span>{isDrawn ? 'Sortear Novamente' : 'Sortear Confrontos'}</span>
            </button>
          </div>
       </div>
       
       {!isDrawn && (
-         <div className="text-center py-20 border border-border bg-card/30">
-           <h3 className="font-display text-xl text-muted-foreground uppercase tracking-wide mb-2">Confrontos não definidos</h3>
-           <p className="text-muted-foreground">Sorteie automaticamente ou monte os confrontos manualmente usando os botões acima.</p>
+         <div className="text-center p-12 border border-border bg-card/30 flex flex-col items-center animate-in fade-in duration-500">
+           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4 text-muted-foreground border border-border">
+             <Dices size={32} />
+           </div>
+           <h3 className="font-display text-2xl text-foreground uppercase tracking-wide mb-2">Tabela Vazia</h3>
+           <p className="text-muted-foreground max-w-sm">Use os botões acima para sortear automaticamente os confrontos ou monte-os manualmente para iniciar o torneio.</p>
          </div>
       )}
 
-      {isDrawn && rounds.map(r => (
-        <div key={r} className="bg-card/30 p-4 md:p-6 border border-border/50">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-2">
-            <h3 className="font-display text-xl text-primary flex items-center gap-3 uppercase tracking-wide">
-               <span className="bg-primary/20 text-primary px-3 py-1 val-clip-tl">Rodada {r}</span>
-            </h3>
-            {groupByes[r] && (
-               <span className="text-sm font-display text-muted-foreground uppercase tracking-widest bg-muted px-3 py-1 border border-border">
-                 Folga: <span className="text-foreground">{groupByes[r]}</span>
-               </span>
+      {isDrawn && rounds.map(r => {
+        const complete = isRoundComplete(r);
+        return (
+          <div key={r} className={`p-5 md:p-6 border transition-all duration-300 relative ${complete ? 'bg-card/30 border-border/30 opacity-80' : 'bg-card border-border/80 shadow-sm'}`}>
+            {complete && (
+               <div className="absolute top-0 right-0 text-primary text-[10px] font-display uppercase tracking-widest flex items-center gap-1 border-l border-b border-primary/30 px-3 py-1 bg-primary/10">
+                 <Check size={12} /> Concluída
+               </div>
             )}
+            
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <div className="flex items-center gap-4">
+                <h3 className={`font-display text-2xl uppercase tracking-wide ${complete ? 'text-muted-foreground' : 'text-primary'}`}>
+                  Rodada {r}
+                </h3>
+              </div>
+              
+              {groupByes[r] && (
+                 <div className={`flex items-center gap-2 text-sm px-4 py-2 border ${complete ? 'border-border/50 bg-background/50 text-muted-foreground' : 'border-border bg-background text-foreground'}`}>
+                   <span className="font-display uppercase tracking-widest text-[10px] text-muted-foreground">Descanso:</span>
+                   <span className="font-medium">{groupByes[r]}</span>
+                 </div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {groupMatches.filter(m => m.round === r).map(m => (
+                 <MatchCard key={m.id} match={m} score={scores[m.id]} onSave={updateScore} />
+               ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
-              {groupMatches.filter(m => m.round === r).map(m => (
-               <MatchCard key={m.id} match={m} score={scores[m.id]} onSave={updateScore} />
-             ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
+
       <ConfirmModal
         isOpen={isDrawOpen}
         onClose={() => setIsDrawOpen(false)}
         onConfirm={() => { drawFirstPhase(); setIsDrawOpen(false); }}
-        title="Sortear novos confrontos"
-        message="Já existem resultados registrados. Um novo sorteio apagará todos os placares e reiniciará o chaveamento. Deseja continuar?"
+        title="Sortear Novos Confrontos"
+        message="Atenção: Já existem resultados registrados. Um novo sorteio apagará TODOS os placares atuais e reiniciará o torneio. Tem certeza que deseja continuar?"
       />
       <ConfirmModal
         isOpen={isManualConfirmOpen}
@@ -170,30 +195,35 @@ export function MatchesView({ state }: { state: TournamentState }) {
             setIsManualOpen(false);
           }
         }}
-        title="Salvar novos confrontos"
-        message="Esta alteração apagará todos os resultados registrados e reiniciará o chaveamento. Deseja continuar?"
+        title="Substituir Tabela Ativa"
+        message="Atenção: Já existem resultados registrados. Salvar esta nova tabela apagará TODOS os placares atuais e reiniciará o torneio. Tem certeza que deseja continuar?"
       />
+
+      {/* Manual Editor Modal */}
       {isManualOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-3 backdrop-blur-sm">
-          <div className="max-h-[92dvh] w-full max-w-4xl overflow-y-auto border border-border bg-card p-5 shadow-2xl md:p-7">
-            <div className="mb-6 flex items-start justify-between gap-4 border-b border-border pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="max-h-[92dvh] w-full max-w-4xl overflow-y-auto border border-border bg-card p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="mb-8 flex items-start justify-between gap-4 border-b border-border pb-4">
               <div>
-                <h3 className="font-display text-2xl uppercase tracking-wide text-primary">Montar confrontos</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Escolha quatro jogadores por rodada. O quinto recebe a folga automaticamente.</p>
+                <h3 className="font-display text-2xl uppercase tracking-wide text-primary">Montador de Tabela</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Defina os dois confrontos (quatro jogadores) para cada rodada. O quinto jogador folga automaticamente.</p>
               </div>
-              <button type="button" onClick={() => setIsManualOpen(false)} className="p-2 text-muted-foreground hover:text-foreground" aria-label="Fechar">
-                <X size={20} />
+              <button type="button" onClick={() => setIsManualOpen(false)} className="p-2 text-muted-foreground hover:text-foreground transition-colors" aria-label="Fechar">
+                <X size={24} />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               {manualRounds.map((round, roundIndex) => {
                 const bye = PLAYERS.find(player => !round.includes(player));
                 return (
-                  <div key={roundIndex} className="border border-border bg-background/40 p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <span className="font-display uppercase tracking-widest text-primary">Rodada {roundIndex + 1}</span>
-                      <span className="text-xs uppercase tracking-wider text-muted-foreground">Folga: <strong className="text-foreground">{bye ?? 'Verifique as escolhas'}</strong></span>
+                  <div key={roundIndex} className="border border-border bg-background/50 p-5 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-primary/30" />
+                    <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
+                      <span className="font-display text-lg uppercase tracking-widest text-primary">Rodada {roundIndex + 1}</span>
+                      <span className="text-xs font-display uppercase tracking-widest text-muted-foreground bg-muted px-2 py-1 border border-border">
+                        Folga: <strong className="text-foreground font-sans tracking-normal">{bye ?? 'Verifique as escolhas'}</strong>
+                      </span>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr_24px_1fr_auto_1fr] md:items-center">
                       {round.map((player, slot) => (
@@ -202,26 +232,41 @@ export function MatchesView({ state }: { state: TournamentState }) {
                           <select
                             value={player}
                             onChange={event => updateManualPlayer(roundIndex, slot, event.target.value as Player)}
-                            className="w-full border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                            className="w-full border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors appearance-none cursor-pointer"
                           >
                             {PLAYERS.map(option => <option key={option} value={option}>{option}</option>)}
                           </select>
                         </div>
                       ))}
-                      <span className="hidden font-display text-muted-foreground md:col-start-2 md:row-start-1 md:block">×</span>
-                      <span className="hidden font-display text-muted-foreground md:col-start-6 md:row-start-1 md:block">×</span>
+                      <span className="hidden font-display text-muted-foreground/50 md:col-start-2 md:row-start-1 md:block">VS</span>
+                      <span className="hidden font-display text-muted-foreground/50 md:col-start-6 md:row-start-1 md:block">VS</span>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {manualError && <p role="alert" className="mt-4 border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{manualError}</p>}
-            {hasResults && <p className="mt-4 text-xs text-muted-foreground">Atenção: salvar uma nova tabela apagará os resultados existentes e reiniciará o chaveamento.</p>}
+            {manualError && (
+              <div className="mt-6 border-l-2 border-destructive bg-destructive/10 p-4 text-sm text-destructive flex items-start gap-3">
+                <X size={18} className="shrink-0 mt-0.5" />
+                <p>{manualError}</p>
+              </div>
+            )}
+            
+            {hasResults && (
+              <p className="mt-6 text-xs text-muted-foreground bg-muted p-3 border border-border">
+                <strong className="text-foreground uppercase font-display tracking-widest block mb-1">Aviso de Sobrescrita</strong>
+                Salvar uma nova tabela apagará permanentemente todos os resultados já registrados.
+              </p>
+            )}
 
-            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
-              <button type="button" onClick={() => setIsManualOpen(false)} className="border border-border px-5 py-2.5 font-display text-xs uppercase tracking-widest hover:bg-muted">Cancelar</button>
-              <button type="button" onClick={saveManualSchedule} className="val-clip-br bg-primary px-6 py-2.5 font-display text-xs uppercase tracking-widest text-primary-foreground hover:brightness-110">Salvar confrontos</button>
+            <div className="mt-8 flex flex-col-reverse gap-4 border-t border-border pt-6 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setIsManualOpen(false)} className="border border-border px-6 py-3 font-display text-xs uppercase tracking-widest text-muted-foreground hover:bg-muted hover:text-foreground transition-colors focus:outline-none">
+                Cancelar
+              </button>
+              <button type="button" onClick={saveManualSchedule} className="val-clip-br bg-primary px-8 py-3 font-display text-xs uppercase tracking-widest text-primary-foreground hover:brightness-110 transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background flex items-center justify-center gap-2">
+                <Check size={14} /> Salvar Tabela
+              </button>
             </div>
           </div>
         </div>
