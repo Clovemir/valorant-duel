@@ -90,6 +90,13 @@ export function useTournamentState() {
     addLog(`Sorteio da Fase de Grupos realizado.`);
   }, [addLog]);
 
+  const setManualFirstPhase = useCallback((matches: MatchDef[], byes: Record<number, Player>) => {
+    setGroupMatches(matches);
+    setGroupByes(byes);
+    setScores({});
+    addLog('Confrontos da Fase de Grupos definidos manualmente.');
+  }, [addLog]);
+
   const resetTournament = useCallback(() => {
     setScores({});
     setGroupMatches([]);
@@ -240,6 +247,7 @@ export function useTournamentState() {
     groupByes,
     updateScore,
     drawFirstPhase,
+    setManualFirstPhase,
     resetTournament,
     standings,
     bracketMatches,
