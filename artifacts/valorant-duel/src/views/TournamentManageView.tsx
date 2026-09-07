@@ -2,10 +2,31 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useGetTournament, useUpdateParticipant, useStartTournament, useUpdateTournamentMatch, getGetTournamentQueryKey, getListTournamentsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Loader2, AlertCircle, Check, X, Play, Edit3, ArrowLeft, Save, ShieldAlert, Target } from "lucide-react";
+import { Shield, Loader2, AlertCircle, Check, X, Play, Edit3, ArrowLeft, Save, ShieldAlert, Target, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+function CopyLinkButton({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const url = `${window.location.origin}${basePath}/t/${slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-border/50 hover:border-border val-clip-tl bg-background/50" title="Copiar Link Público">
+      {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
+      <span className={copied ? "text-accent" : ""}>{copied ? "COPIADO" : "LINK PÚBLICO"}</span>
+    </button>
+  );
+}
 
 const getStatusLabel = (status: string) => {
   switch (status) {
@@ -155,6 +176,7 @@ export function TournamentManageView() {
                }`}>
                  {getStatusLabel(tournament.status)}
                </span>
+               <CopyLinkButton slug={tournament.slug} />
             </div>
             <h2 className="text-3xl md:text-4xl font-display uppercase tracking-tighter text-foreground line-clamp-2 md:line-clamp-1">{tournament.name}</h2>
             <p className="text-muted-foreground font-sans mt-1 text-sm">Controle de Operações da Administração</p>

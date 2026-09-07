@@ -1,7 +1,29 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { Plus, Users, ArrowRight, ShieldAlert, ChevronRight, Activity } from "lucide-react";
+import { Plus, Users, ArrowRight, ShieldAlert, ChevronRight, Activity, Copy, Check } from "lucide-react";
 import { useListTournaments } from "@workspace/api-client-react";
 import { format } from "date-fns";
+
+function CopyLinkButton({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const url = `${window.location.origin}${basePath}/t/${slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-border/50 hover:border-border val-clip-tl bg-background/50" title="Copiar Link Público">
+      {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
+      <span className={copied ? "text-accent" : ""}>{copied ? "COPIADO" : "LINK"}</span>
+    </button>
+  );
+}
 
 const getStatusLabel = (status: string) => {
   switch (status) {
@@ -80,6 +102,7 @@ export function DashboardView() {
                   <span className={`text-[10px] px-2 py-1 font-mono uppercase tracking-widest border ${getStatusColor(tournament.status)}`}>
                     {getStatusLabel(tournament.status)}
                   </span>
+                  <CopyLinkButton slug={tournament.slug} />
                 </div>
                 
                 <div>

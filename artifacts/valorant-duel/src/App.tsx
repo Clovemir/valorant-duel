@@ -116,10 +116,11 @@ function Header() {
         <div className="flex items-center gap-3 md:gap-6 shrink-0">
           <Show when="signed-out">
             <Link href="/sign-in" className="font-display uppercase text-[10px] md:text-sm tracking-widest hover:text-primary transition-colors">
-              Acesso
+              <span className="sm:hidden">Entrar (Org)</span>
+              <span className="hidden sm:inline">Entrar como Organizador</span>
             </Link>
             <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 md:px-6 md:py-3 font-display uppercase text-[10px] md:text-sm tracking-widest val-clip-br transition-all">
-              Alistamento
+              Criar Torneio
             </Link>
           </Show>
           <Show when="signed-in">

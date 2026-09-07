@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useGetTournament, useRegisterParticipant, getGetTournamentQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Loader2, Trophy, Swords, AlertCircle, UserPlus, FileText, Target, Crosshair, Crown } from "lucide-react";
+import { Shield, Loader2, Trophy, Swords, AlertCircle, UserPlus, FileText, Target, Crosshair, Crown, Copy, Check, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -17,6 +17,27 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+function CopyLinkButton({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const url = `${window.location.origin}${basePath}/t/${slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 border border-border/50 hover:border-border val-clip-tl bg-background/80 backdrop-blur-sm" title="Copiar Link Público">
+      {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
+      <span className={copied ? "text-accent" : ""}>{copied ? "COPIADO" : "LINK PÚBLICO"}</span>
+    </button>
+  );
+}
 
 const getStatusLabel = (status: string) => {
   switch (status) {
@@ -146,6 +167,7 @@ export function TournamentDetailView() {
               <span className="text-xs px-3 py-1.5 font-mono uppercase tracking-widest bg-background border border-border text-foreground val-clip-br">
                 SYS: {getFormatLabel(tournament.format)}
               </span>
+              <CopyLinkButton slug={tournament.slug} />
             </div>
             
             <h1 className="text-4xl md:text-7xl font-display uppercase tracking-tighter text-foreground leading-none">
@@ -160,13 +182,23 @@ export function TournamentDetailView() {
             </div>
           </div>
           
-          {tournament.isOrganizer && (
-            <Link href={`/t/${tournament.slug}/manage`} className="group/btn relative bg-card border border-border hover:border-primary px-8 py-4 font-display uppercase tracking-widest text-sm val-clip-tl transition-all flex items-center gap-3 overflow-hidden">
-              <Shield size={18} className="text-primary group-hover/btn:text-primary-foreground relative z-10" /> 
-              <span className="relative z-10 group-hover/btn:text-primary-foreground">Painel de Controle</span>
-              <div className="absolute inset-0 bg-primary translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
-            </Link>
-          )}
+          <div className="flex flex-col sm:flex-row items-end gap-4">
+            {!tournament.isOrganizer && (
+              <Link href="/" className="group/btn relative bg-card border border-border hover:border-primary px-8 py-4 font-display uppercase tracking-widest text-sm val-clip-tl transition-all flex items-center gap-3 overflow-hidden">
+                <Home size={18} className="text-muted-foreground group-hover/btn:text-primary-foreground relative z-10" /> 
+                <span className="relative z-10 group-hover/btn:text-primary-foreground">Início</span>
+                <div className="absolute inset-0 bg-primary translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
+              </Link>
+            )}
+            
+            {tournament.isOrganizer && (
+              <Link href={`/t/${tournament.slug}/manage`} className="group/btn relative bg-card border border-border hover:border-primary px-8 py-4 font-display uppercase tracking-widest text-sm val-clip-tl transition-all flex items-center gap-3 overflow-hidden">
+                <Shield size={18} className="text-primary group-hover/btn:text-primary-foreground relative z-10" /> 
+                <span className="relative z-10 group-hover/btn:text-primary-foreground">Painel de Controle</span>
+                <div className="absolute inset-0 bg-primary translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
