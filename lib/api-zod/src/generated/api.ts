@@ -162,10 +162,33 @@ export const RegisterParticipantBody = zod.object({
 })
 
 export const RegisterParticipantResponse = zod.object({
-  "id": zod.number().int(),
+  "trackingToken": zod.string(),
   "nickname": zod.string(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
-  "seed": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Check a public registration using its private tracking token
+ */
+export const GetRegistrationStatusParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const getRegistrationStatusBodyTrackingTokenMin = 32;
+export const getRegistrationStatusBodyTrackingTokenMax = 128;
+
+
+
+export const GetRegistrationStatusBody = zod.object({
+  "trackingToken": zod.string().min(getRegistrationStatusBodyTrackingTokenMin).max(getRegistrationStatusBodyTrackingTokenMax)
+})
+
+export const GetRegistrationStatusResponse = zod.object({
+  "nickname": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "tournamentStatus": zod.enum(['registration', 'active', 'completed']),
   "createdAt": zod.coerce.date()
 })
 

@@ -77,6 +77,14 @@ export interface RegistrationInput {
   nickname: string;
 }
 
+export interface RegistrationTrackingInput {
+  /**
+     * @minLength 32
+     * @maxLength 128
+     */
+  trackingToken: string;
+}
+
 export interface ParticipantUpdate {
   /**
      * @minLength 2
@@ -99,6 +107,20 @@ export interface Participant {
   status: ParticipantStatus;
   /** @nullable */
   seed: number | null;
+  createdAt: string;
+}
+
+export interface RegistrationReceipt {
+  trackingToken: string;
+  nickname: string;
+  status: ParticipantStatus;
+  createdAt: string;
+}
+
+export interface RegistrationStatus {
+  nickname: string;
+  status: ParticipantStatus;
+  tournamentStatus: TournamentStatus;
   createdAt: string;
 }
 

@@ -92,7 +92,29 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Participant"
+                $ref: "#/components/schemas/RegistrationReceipt"
+  /tournaments/{slug}/registrations/status:
+    post:
+      operationId: getRegistrationStatus
+      tags: [tournaments]
+      summary: Check a public registration using its private tracking token
+      parameters:
+        - $ref: "#/components/parameters/TournamentSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationTrackingInput"
+      responses:
+        "200":
+          description: Current registration status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationStatus"
+        "404":
+          description: Registration not found
   /tournaments/{slug}/participants/{participantId}:
     patch:
       operationId: updateParticipant
@@ -207,6 +229,11 @@ components:
       required: [nickname]
       properties:
         nickname: { type: string, minLength: 2, maxLength: 32 }
+    RegistrationTrackingInput:
+      type: object
+      required: [trackingToken]
+      properties:
+        trackingToken: { type: string, minLength: 32, maxLength: 128 }
     ParticipantUpdate:
       type: object
       properties:
@@ -226,6 +253,22 @@ components:
         nickname: { type: string }
         status: { $ref: "#/components/schemas/ParticipantStatus" }
         seed: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+    RegistrationReceipt:
+      type: object
+      required: [trackingToken, nickname, status, createdAt]
+      properties:
+        trackingToken: { type: string }
+        nickname: { type: string }
+        status: { $ref: "#/components/schemas/ParticipantStatus" }
+        createdAt: { type: string, format: date-time }
+    RegistrationStatus:
+      type: object
+      required: [nickname, status, tournamentStatus, createdAt]
+      properties:
+        nickname: { type: string }
+        status: { $ref: "#/components/schemas/ParticipantStatus" }
+        tournamentStatus: { $ref: "#/components/schemas/TournamentStatus" }
         createdAt: { type: string, format: date-time }
     TournamentMatch:
       type: object

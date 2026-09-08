@@ -25,6 +25,9 @@ import type {
   Participant,
   ParticipantUpdate,
   RegistrationInput,
+  RegistrationReceipt,
+  RegistrationStatus,
+  RegistrationTrackingInput,
   TournamentDetail,
   TournamentInput,
   TournamentMatch,
@@ -373,9 +376,9 @@ export const getRegisterParticipantUrl = (slug: string,) => {
  * @summary Submit a public tournament registration
  */
 export const registerParticipant = async (slug: string,
-    registrationInput: RegistrationInput, options?: Parameters<typeof customFetch>[1]): Promise<Participant> => {
+    registrationInput: RegistrationInput, options?: Parameters<typeof customFetch>[1]): Promise<RegistrationReceipt> => {
 
-  return customFetch<Participant>(getRegisterParticipantUrl(slug),
+  return customFetch<RegistrationReceipt>(getRegisterParticipantUrl(slug),
   {
     ...options,
     method: 'POST',
@@ -431,6 +434,78 @@ export const useRegisterParticipant = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRegisterParticipantMutationOptions(options));
+    }
+
+export const getGetRegistrationStatusUrl = (slug: string,) => {
+
+
+
+
+  return `/api/tournaments/${slug}/registrations/status`
+}
+
+/**
+ * @summary Check a public registration using its private tracking token
+ */
+export const getRegistrationStatus = async (slug: string,
+    registrationTrackingInput: RegistrationTrackingInput, options?: Parameters<typeof customFetch>[1]): Promise<RegistrationStatus> => {
+
+  return customFetch<RegistrationStatus>(getGetRegistrationStatusUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registrationTrackingInput)
+  }
+);}
+
+
+
+
+
+export const getGetRegistrationStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRegistrationStatus>>, TError,{slug: string;data: BodyType<RegistrationTrackingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getRegistrationStatus>>, TError,{slug: string;data: BodyType<RegistrationTrackingInput>}, TContext> => {
+
+const mutationKey = ['getRegistrationStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getRegistrationStatus>>, {slug: string;data: BodyType<RegistrationTrackingInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  getRegistrationStatus(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetRegistrationStatusMutationResult = NonNullable<Awaited<ReturnType<typeof getRegistrationStatus>>>
+    export type GetRegistrationStatusMutationBody = BodyType<RegistrationTrackingInput>
+    export type GetRegistrationStatusMutationError = ErrorType<void>
+
+    /**
+ * @summary Check a public registration using its private tracking token
+ */
+export const useGetRegistrationStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getRegistrationStatus>>, TError,{slug: string;data: BodyType<RegistrationTrackingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getRegistrationStatus>>,
+        TError,
+        {slug: string;data: BodyType<RegistrationTrackingInput>},
+        TContext
+      > => {
+      return useMutation(getGetRegistrationStatusMutationOptions(options));
     }
 
 export const getUpdateParticipantUrl = (slug: string,

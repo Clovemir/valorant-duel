@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useGetTournament, useRegisterParticipant, getGetTournamentQueryKey } from "@workspace/api-client-react";
+import { useGetRegistrationStatus, useGetTournament, useRegisterParticipant, getGetTournamentQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Loader2, Trophy, Swords, AlertCircle, UserPlus, FileText, Target, Crosshair, Crown, Copy, Check, Home } from "lucide-react";
+import { Shield, Loader2, Trophy, Swords, AlertCircle, UserPlus, FileText, Target, Crosshair, Crown, Copy, Check, Home, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TournamentBracket } from "@/components/TournamentBracket";
 
@@ -94,12 +94,25 @@ const registerSchema = z.object({
 
 export function TournamentDetailView() {
   const { slug } = useParams();
+  const trackingStorageKey = `valorant-duel:registration:${slug ?? ""}`;
+  const [trackingToken, setTrackingToken] = useState(() => slug ? localStorage.getItem(`valorant-duel:registration:${slug}`) ?? "" : "");
   const { data: tournament, isLoading, error } = useGetTournament(slug || "");
+  const registrationLookup = useGetRegistrationStatus();
+  const registrationStatus = registrationLookup.data;
+  const isLoadingRegistration = registrationLookup.isPending;
   const registerParticipant = useRegisterParticipant();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'overview' | 'participants' | 'matches' | 'standings'>('overview');
   const [matchSubTab, setMatchSubTab] = useState<'classification' | 'bracket'>('bracket');
+
+  useEffect(() => {
+    if (!slug || !trackingToken) return;
+    const refresh = () => registrationLookup.mutate({ slug, data: { trackingToken } });
+    refresh();
+    const interval = window.setInterval(refresh, 20_000);
+    return () => window.clearInterval(interval);
+  }, [slug, trackingToken]);
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -112,7 +125,9 @@ export function TournamentDetailView() {
     registerParticipant.mutate(
       { slug, data: values },
       {
-        onSuccess: () => {
+        onSuccess: (receipt) => {
+          localStorage.setItem(trackingStorageKey, receipt.trackingToken);
+          setTrackingToken(receipt.trackingToken);
           queryClient.invalidateQueries({ queryKey: getGetTournamentQueryKey(slug) });
           toast({
             title: "Inscrição Enviada",
@@ -166,6 +181,11 @@ export function TournamentDetailView() {
   const hasClassification = classificationMatches.length > 0;
   const hasPlayoffs = playoffMatches.length > 0;
   const showBracket = hasPlayoffs && (!hasClassification || matchSubTab === 'bracket');
+  const registrationStatusLabel = registrationStatus ? getParticipantStatus(registrationStatus.status) : "";
+  const clearRegistrationTracking = () => {
+    localStorage.removeItem(trackingStorageKey);
+    setTrackingToken("");
+  };
 
   return (
     <div className="space-y-10">
@@ -278,12 +298,48 @@ export function TournamentDetailView() {
               </div>
 
               <div className="space-y-6">
-                {isRegistrationOpen ? (
+                {trackingToken ? (
+                  <div className="bg-card border border-primary/40 p-8 val-clip-tl space-y-5 relative overflow-hidden" aria-live="polite">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-[40px] pointer-events-none"></div>
+                    <div className="relative z-10 space-y-5">
+                      <div className="flex items-center justify-between gap-4">
+                        <h3 className="font-display uppercase tracking-widest text-2xl text-primary">Sua Inscrição</h3>
+                        {isLoadingRegistration && <Loader2 className="animate-spin text-primary" size={20} />}
+                      </div>
+                      {registrationStatus ? (
+                        <>
+                          <div>
+                            <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Nickname</p>
+                            <p className="font-display text-2xl tracking-wider text-foreground mt-1">{registrationStatus.nickname}</p>
+                          </div>
+                          <div className={`border p-4 ${
+                            registrationStatus.status === "approved" ? "border-accent/40 bg-accent/10" :
+                            registrationStatus.status === "rejected" ? "border-destructive/40 bg-destructive/10" :
+                            "border-yellow-500/40 bg-yellow-500/10"
+                          }`}>
+                            <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Situação atual</p>
+                            <p className="font-display uppercase tracking-widest text-lg mt-1">{registrationStatusLabel}</p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {registrationStatus.status === "pending" && "O organizador ainda está analisando sua solicitação. Esta página atualiza automaticamente."}
+                            {registrationStatus.status === "approved" && (registrationStatus.tournamentStatus === "registration" ? "Entrada confirmada. Aguarde o início do torneio." : "Entrada confirmada. Consulte os confrontos para acompanhar sua jornada.")}
+                            {registrationStatus.status === "rejected" && "Sua inscrição não foi aprovada para este torneio."}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Consultando o protocolo salvo neste dispositivo...</p>
+                      )}
+                      <button type="button" onClick={clearRegistrationTracking} className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground">
+                        <RotateCcw size={14} /> Usar outro nickname
+                      </button>
+                    </div>
+                  </div>
+                ) : isRegistrationOpen ? (
                   <div className="bg-card border border-primary/50 p-8 val-clip-tl space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-[40px] pointer-events-none"></div>
                     <div className="relative z-10">
                       <h3 className="font-display uppercase tracking-widest text-2xl text-primary mb-2">Alistamento Aberto</h3>
-                      <p className="text-sm text-muted-foreground font-sans mb-6">Insira seu Nickname de operação para solicitar entrada no torneio.</p>
+                      <p className="text-sm text-muted-foreground font-sans mb-6">Insira seu Nickname de operação. O status ficará salvo neste dispositivo.</p>
                       
                       <Form {...form}>
                         <form onSubmit={form.handleSubmit(onRegister)} className="space-y-6">

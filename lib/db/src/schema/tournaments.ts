@@ -29,6 +29,7 @@ export const participantsTable = pgTable(
     tournamentId: integer("tournament_id").notNull().references(() => tournamentsTable.id, { onDelete: "cascade" }),
     nickname: text("nickname").notNull(),
     nicknameNormalized: text("nickname_normalized").notNull(),
+    trackingTokenHash: text("tracking_token_hash").unique(),
     status: text("status").notNull().default("pending"),
     seed: integer("seed"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
