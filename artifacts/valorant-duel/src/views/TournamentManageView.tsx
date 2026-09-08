@@ -6,6 +6,7 @@ import { Shield, Loader2, AlertCircle, Check, X, Play, Edit3, ArrowLeft, Save, S
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TournamentBracket } from "@/components/TournamentBracket";
 
 function CopyLinkButton({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
@@ -77,6 +78,7 @@ export function TournamentManageView() {
   const { toast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'participants' | 'matches'>('participants');
+  const [manageMatchSubTab, setManageMatchSubTab] = useState<'edit' | 'bracket'>('edit');
   const [editingMatch, setEditingMatch] = useState<number | null>(null);
   const [matchScores, setMatchScores] = useState<{p1: string, p2: string}>({ p1: "0", p2: "0" });
 
@@ -324,104 +326,117 @@ export function TournamentManageView() {
                  [ NENHUM CONFRONTO ENCONTRADO NO BANCO DE DADOS ]
                </div>
             ) : (
-              <div className="space-y-12">
-                {Array.from(new Set(tournament.matches.map(m => m.round))).sort((a,b)=>a-b).map(round => (
-                  <div key={round} className="space-y-6">
-                   <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                      <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(round).padStart(2, '0')}</span></h4>
-                     <span className="shrink-0 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-primary">
-                       Meta: {tournament.matches.find(m => m.round === round)?.targetScore ?? 0} rounds
-                     </span>
-                     <div className="h-px min-w-12 bg-border/50 flex-1"></div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {tournament.matches.filter(m => m.round === round).map(match => (
-                        <div key={match.id} className="bg-card border border-border flex flex-col val-clip-tl relative overflow-hidden group">
-                           {match.status === 'completed' && <div className="absolute top-0 right-0 w-1.5 h-full bg-muted"></div>}
-                           {match.status === 'ready' && <div className="absolute top-0 right-0 w-1.5 h-full bg-accent"></div>}
-                           
-                           <div className="p-6 flex flex-col gap-5">
-                              <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                                <span>{getStageLabel(match.stage)}</span>
-                                <span className={match.status === 'ready' ? 'text-accent' : ''}>{getMatchStatus(match.status)}</span>
-                              </div>
-                              <div className="flex items-center justify-between border-y border-border/40 bg-background/60 px-3 py-2 font-mono text-[10px] uppercase tracking-widest">
-                                <span className="text-muted-foreground">Condição de vitória</span>
-                                <strong className="text-primary">Chegar a {match.targetScore} rounds</strong>
-                              </div>
-                              
-                              {editingMatch === match.id ? (
-                                <div className="space-y-4">
-                                  <div className="flex items-center gap-4 p-3 bg-background border border-border/50">
-                                    <span className="font-display text-lg tracking-wider flex-1 truncate">{match.player1Name || 'A DEFINIR'}</span>
-                                    <Input 
-                                      type="number" 
-                                      className="w-20 bg-card border-border font-mono text-center rounded-none text-xl" 
-                                      value={matchScores.p1}
-                                      onChange={(e) => setMatchScores(prev => ({...prev, p1: e.target.value}))}
-                                      disabled={!match.player1Id}
-                                    />
+              <div className="space-y-6">
+                {tournament.matches.some(m => m.stage !== 'classification') && (
+                  <div className="flex gap-2 border-b border-border/30 pb-4 mb-6">
+                    <button onClick={() => setManageMatchSubTab('edit')} className={`px-4 py-2 font-display text-sm tracking-widest uppercase val-clip-tl transition-all border ${manageMatchSubTab === 'edit' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent text-muted-foreground border-transparent hover:border-border'}`}>Lista de Edição</button>
+                    <button onClick={() => setManageMatchSubTab('bracket')} className={`px-4 py-2 font-display text-sm tracking-widest uppercase val-clip-tl transition-all border ${manageMatchSubTab === 'bracket' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent text-muted-foreground border-transparent hover:border-border'}`}>Visualizar Chaveamento</button>
+                  </div>
+                )}
+
+                {manageMatchSubTab === 'bracket' && tournament.matches.some(m => m.stage !== 'classification') ? (
+                  <TournamentBracket matches={tournament.matches} />
+                ) : (
+                  <div className="space-y-12">
+                    {Array.from(new Set(tournament.matches.map(m => m.round))).sort((a,b)=>a-b).map(round => (
+                      <div key={round} className="space-y-6">
+                       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                          <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(round).padStart(2, '0')}</span></h4>
+                         <span className="shrink-0 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-primary">
+                           Meta: {tournament.matches.find(m => m.round === round)?.targetScore ?? 0} rounds
+                         </span>
+                         <div className="h-px min-w-12 bg-border/50 flex-1"></div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {tournament.matches.filter(m => m.round === round).map(match => (
+                            <div key={match.id} className="bg-card border border-border flex flex-col val-clip-tl relative overflow-hidden group">
+                               {match.status === 'completed' && <div className="absolute top-0 right-0 w-1.5 h-full bg-muted"></div>}
+                               {match.status === 'ready' && <div className="absolute top-0 right-0 w-1.5 h-full bg-accent"></div>}
+                               
+                               <div className="p-6 flex flex-col gap-5">
+                                  <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                                    <span>{getStageLabel(match.stage)}</span>
+                                    <span className={match.status === 'ready' ? 'text-accent' : ''}>{getMatchStatus(match.status)}</span>
                                   </div>
-                                  <div className="flex items-center gap-4 p-3 bg-background border border-border/50">
-                                    <span className="font-display text-lg tracking-wider flex-1 truncate">{match.player2Name || 'A DEFINIR'}</span>
-                                    <Input 
-                                      type="number" 
-                                      className="w-20 bg-card border-border font-mono text-center rounded-none text-xl" 
-                                      value={matchScores.p2}
-                                      onChange={(e) => setMatchScores(prev => ({...prev, p2: e.target.value}))}
-                                      disabled={!match.player2Id}
-                                    />
-                                  </div>
-                                  <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
-                                    <Button variant="ghost" size="sm" className="rounded-none font-display uppercase tracking-widest text-xs h-10 px-6 hover:bg-muted" onClick={() => setEditingMatch(null)}>Abortar</Button>
-                                    <Button 
-                                      size="sm" 
-                                      className="rounded-none font-display uppercase tracking-widest text-xs h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/90 val-clip-br" 
-                                      onClick={() => handleSaveMatch(match.id)}
-                                      disabled={updateMatch.isPending}
-                                    >
-                                      {updateMatch.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Confirmar
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <div className={`flex justify-between items-center p-3 border-l-2 ${match.player1Score && match.player2Score && match.player1Score > match.player2Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
-                                    <span className="font-display text-lg tracking-wider truncate mr-4">{match.player1Name || 'A DEFINIR'}</span>
-                                    <span className="font-mono text-xl">{match.player1Score ?? '-'}</span>
-                                  </div>
-                                  <div className={`flex justify-between items-center p-3 border-l-2 ${match.player1Score && match.player2Score && match.player2Score > match.player1Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
-                                    <span className="font-display text-lg tracking-wider truncate mr-4">{match.player2Name || 'A DEFINIR'}</span>
-                                    <span className="font-mono text-xl">{match.player2Score ?? '-'}</span>
+                                  <div className="flex items-center justify-between border-y border-border/40 bg-background/60 px-3 py-2 font-mono text-[10px] uppercase tracking-widest">
+                                    <span className="text-muted-foreground">Condição de vitória</span>
+                                    <strong className="text-primary">Chegar a {match.targetScore} rounds</strong>
                                   </div>
                                   
-                                  {(match.player1Id || match.player2Id) && (
-                                    <div className="flex justify-end pt-4 mt-2 border-t border-border/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="h-9 rounded-none border-border font-display uppercase text-xs tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted"
-                                        onClick={() => {
-                                          setMatchScores({
-                                            p1: match.player1Score?.toString() || "0",
-                                            p2: match.player2Score?.toString() || "0"
-                                          });
-                                          setEditingMatch(match.id);
-                                        }}
-                                      >
-                                        <Edit3 size={14} className="mr-2" /> Editar Placar
-                                      </Button>
+                                  {editingMatch === match.id ? (
+                                    <div className="space-y-4">
+                                      <div className="flex items-center gap-4 p-3 bg-background border border-border/50">
+                                        <span className="font-display text-lg tracking-wider flex-1 truncate">{match.player1Name || 'A DEFINIR'}</span>
+                                        <Input 
+                                          type="number" 
+                                          className="w-20 bg-card border-border font-mono text-center rounded-none text-xl" 
+                                          value={matchScores.p1}
+                                          onChange={(e) => setMatchScores(prev => ({...prev, p1: e.target.value}))}
+                                          disabled={!match.player1Id}
+                                        />
+                                      </div>
+                                      <div className="flex items-center gap-4 p-3 bg-background border border-border/50">
+                                        <span className="font-display text-lg tracking-wider flex-1 truncate">{match.player2Name || 'A DEFINIR'}</span>
+                                        <Input 
+                                          type="number" 
+                                          className="w-20 bg-card border-border font-mono text-center rounded-none text-xl" 
+                                          value={matchScores.p2}
+                                          onChange={(e) => setMatchScores(prev => ({...prev, p2: e.target.value}))}
+                                          disabled={!match.player2Id}
+                                        />
+                                      </div>
+                                      <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
+                                        <Button variant="ghost" size="sm" className="rounded-none font-display uppercase tracking-widest text-xs h-10 px-6 hover:bg-muted" onClick={() => setEditingMatch(null)}>Abortar</Button>
+                                        <Button 
+                                          size="sm" 
+                                          className="rounded-none font-display uppercase tracking-widest text-xs h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/90 val-clip-br" 
+                                          onClick={() => handleSaveMatch(match.id)}
+                                          disabled={updateMatch.isPending}
+                                        >
+                                          {updateMatch.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Confirmar
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <div className={`flex justify-between items-center p-3 border-l-2 ${match.player1Score && match.player2Score && match.player1Score > match.player2Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
+                                        <span className="font-display text-lg tracking-wider truncate mr-4">{match.player1Name || 'A DEFINIR'}</span>
+                                        <span className="font-mono text-xl">{match.player1Score ?? '-'}</span>
+                                      </div>
+                                      <div className={`flex justify-between items-center p-3 border-l-2 ${match.player1Score && match.player2Score && match.player2Score > match.player1Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
+                                        <span className="font-display text-lg tracking-wider truncate mr-4">{match.player2Name || 'A DEFINIR'}</span>
+                                        <span className="font-mono text-xl">{match.player2Score ?? '-'}</span>
+                                      </div>
+                                      
+                                      {(match.player1Id || match.player2Id) && (
+                                        <div className="flex justify-end pt-4 mt-2 border-t border-border/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="h-9 rounded-none border-border font-display uppercase text-xs tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted"
+                                            onClick={() => {
+                                              setMatchScores({
+                                                p1: match.player1Score?.toString() || "0",
+                                                p2: match.player2Score?.toString() || "0"
+                                              });
+                                              setEditingMatch(match.id);
+                                            }}
+                                          >
+                                            <Edit3 size={14} className="mr-2" /> Editar Placar
+                                          </Button>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
-                                </div>
-                              )}
-                           </div>
+                               </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

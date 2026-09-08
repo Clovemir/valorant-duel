@@ -7,6 +7,7 @@ import { useGetTournament, useRegisterParticipant, getGetTournamentQueryKey } fr
 import { useQueryClient } from "@tanstack/react-query";
 import { Shield, Loader2, Trophy, Swords, AlertCircle, UserPlus, FileText, Target, Crosshair, Crown, Copy, Check, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TournamentBracket } from "@/components/TournamentBracket";
 
 import {
   Form,
@@ -98,6 +99,7 @@ export function TournamentDetailView() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'overview' | 'participants' | 'matches' | 'standings'>('overview');
+  const [matchSubTab, setMatchSubTab] = useState<'classification' | 'bracket'>('bracket');
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -159,6 +161,12 @@ export function TournamentDetailView() {
   const isRegistrationOpen = tournament.status === 'registration';
   const approvedCount = tournament.participants.filter(p => p.status === 'approved').length;
   
+  const classificationMatches = tournament?.matches.filter(m => m.stage === 'classification') || [];
+  const playoffMatches = tournament?.matches.filter(m => m.stage !== 'classification') || [];
+  const hasClassification = classificationMatches.length > 0;
+  const hasPlayoffs = playoffMatches.length > 0;
+  const showBracket = hasPlayoffs && (!hasClassification || matchSubTab === 'bracket');
+
   return (
     <div className="space-y-10">
       {/* Header HUD */}
@@ -353,50 +361,81 @@ export function TournamentDetailView() {
                   [ MATRIZ DE CONFRONTOS OFFLINE ]
                 </div>
               ) : (
-                <div className="space-y-12">
-                  {Array.from(new Set(tournament.matches.map(m => m.round))).sort((a,b)=>a-b).map(round => (
-                    <div key={round} className="space-y-6 relative">
-                       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                        <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(round).padStart(2, '0')}</span></h4>
-                         <span className="shrink-0 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-primary">
-                           Meta: {tournament.matches.find(m => m.round === round)?.targetScore ?? 0} rounds
-                         </span>
-                         <div className="h-px min-w-12 bg-border/50 flex-1"></div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {tournament.matches.filter(m => m.round === round).map(match => (
-                          <div key={match.id} className="bg-card border border-border flex flex-col val-clip-tl hover:border-primary/50 transition-colors group relative overflow-hidden">
-                             {match.status === 'completed' && <div className="absolute top-0 right-0 w-1.5 h-full bg-muted"></div>}
-                             {match.status === 'ready' && <div className="absolute top-0 right-0 w-1.5 h-full bg-accent"></div>}
-                             
-                             <div className="p-5 flex flex-col gap-4">
-                                <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                                   <span>{getStageLabel(match.stage)}</span>
-                                  <span className={match.status === 'ready' ? 'text-accent' : ''}>{getMatchStatus(match.status)}</span>
-                                </div>
-                                 <div className="flex items-center justify-between border-y border-border/40 bg-background/60 px-3 py-2 font-mono text-[10px] uppercase tracking-widest">
-                                   <span className="text-muted-foreground">Condição de vitória</span>
-                                   <strong className="text-primary">Chegar a {match.targetScore} rounds</strong>
-                                 </div>
-                                
-                                <div className="space-y-1">
-                                  <div className={`flex justify-between items-center p-3 border-l-2 transition-colors ${match.player1Score && match.player2Score && match.player1Score > match.player2Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
-                                    <span className="font-display text-lg tracking-wider truncate mr-4">{match.player1Name || 'A DEFINIR'}</span>
-                                    <span className="font-mono text-xl">{match.player1Score ?? '-'}</span>
-                                  </div>
-                                  
-                                  <div className={`flex justify-between items-center p-3 border-l-2 transition-colors ${match.player1Score && match.player2Score && match.player2Score > match.player1Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
-                                    <span className="font-display text-lg tracking-wider truncate mr-4">{match.player2Name || 'A DEFINIR'}</span>
-                                    <span className="font-mono text-xl">{match.player2Score ?? '-'}</span>
-                                  </div>
-                                </div>
-                             </div>
-                          </div>
-                        ))}
-                      </div>
+                <div className="space-y-6">
+                  {hasClassification && hasPlayoffs && (
+                    <div className="flex gap-2 border-b border-border/30 pb-4 mb-6">
+                      <button
+                        onClick={() => setMatchSubTab('classification')}
+                        className={`px-4 py-2 font-display text-sm tracking-widest uppercase transition-all val-clip-tl ${
+                          matchSubTab === 'classification'
+                            ? 'bg-primary/10 text-primary border border-primary/30' 
+                            : 'bg-transparent text-muted-foreground border border-transparent hover:border-border'
+                        }`}
+                      >
+                        Classificatória
+                      </button>
+                      <button
+                        onClick={() => setMatchSubTab('bracket')}
+                        className={`px-4 py-2 font-display text-sm tracking-widest uppercase transition-all val-clip-tl ${
+                          matchSubTab === 'bracket'
+                            ? 'bg-primary/10 text-primary border border-primary/30' 
+                            : 'bg-transparent text-muted-foreground border border-transparent hover:border-border'
+                        }`}
+                      >
+                        Chaveamento
+                      </button>
                     </div>
-                  ))}
+                  )}
+
+                  {showBracket ? (
+                    <TournamentBracket matches={tournament.matches} />
+                  ) : (
+                    <div className="space-y-12">
+                      {Array.from(new Set(classificationMatches.map(m => m.round))).sort((a,b)=>a-b).map(round => (
+                        <div key={round} className="space-y-6 relative">
+                           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                            <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(round).padStart(2, '0')}</span></h4>
+                             <span className="shrink-0 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-primary">
+                               Meta: {classificationMatches.find(m => m.round === round)?.targetScore ?? 0} rounds
+                             </span>
+                             <div className="h-px min-w-12 bg-border/50 flex-1"></div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {classificationMatches.filter(m => m.round === round).map(match => (
+                              <div key={match.id} className="bg-card border border-border flex flex-col val-clip-tl hover:border-primary/50 transition-colors group relative overflow-hidden">
+                                 {match.status === 'completed' && <div className="absolute top-0 right-0 w-1.5 h-full bg-muted"></div>}
+                                 {match.status === 'ready' && <div className="absolute top-0 right-0 w-1.5 h-full bg-accent"></div>}
+                                 
+                                 <div className="p-5 flex flex-col gap-4">
+                                    <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                                       <span>{getStageLabel(match.stage)}</span>
+                                      <span className={match.status === 'ready' ? 'text-accent' : ''}>{getMatchStatus(match.status)}</span>
+                                    </div>
+                                     <div className="flex items-center justify-between border-y border-border/40 bg-background/60 px-3 py-2 font-mono text-[10px] uppercase tracking-widest">
+                                       <span className="text-muted-foreground">Condição de vitória</span>
+                                       <strong className="text-primary">Chegar a {match.targetScore} rounds</strong>
+                                     </div>
+                                    
+                                    <div className="space-y-1">
+                                      <div className={`flex justify-between items-center p-3 border-l-2 transition-colors ${match.player1Score && match.player2Score && match.player1Score > match.player2Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
+                                        <span className="font-display text-lg tracking-wider truncate mr-4">{match.player1Name || 'A DEFINIR'}</span>
+                                        <span className="font-mono text-xl">{match.player1Score ?? '-'}</span>
+                                      </div>
+                                      
+                                      <div className={`flex justify-between items-center p-3 border-l-2 transition-colors ${match.player1Score && match.player2Score && match.player2Score > match.player1Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
+                                        <span className="font-display text-lg tracking-wider truncate mr-4">{match.player2Name || 'A DEFINIR'}</span>
+                                        <span className="font-mono text-xl">{match.player2Score ?? '-'}</span>
+                                      </div>
+                                    </div>
+                                 </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
