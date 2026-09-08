@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "wouter";
+import { useLocation, useParams, useSearch, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useGetRegistrationStatus, useGetTournament, useRegisterParticipant, getGetTournamentQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Loader2, Trophy, Swords, AlertCircle, UserPlus, FileText, Target, Crosshair, Crown, Copy, Check, Home, RotateCcw } from "lucide-react";
+import { Shield, Loader2, Trophy, Swords, AlertCircle, UserPlus, FileText, Target, Crosshair, Crown, Copy, Check, Home, RotateCcw, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TournamentBracket } from "@/components/TournamentBracket";
 
@@ -94,6 +94,9 @@ const registerSchema = z.object({
 
 export function TournamentDetailView() {
   const { slug } = useParams();
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const searchParams = new URLSearchParams(search);
   const trackingStorageKey = `valorant-duel:registration:${slug ?? ""}`;
   const [trackingToken, setTrackingToken] = useState(() => slug ? localStorage.getItem(`valorant-duel:registration:${slug}`) ?? "" : "");
   const { data: tournament, isLoading, error } = useGetTournament(slug || "");
@@ -103,8 +106,15 @@ export function TournamentDetailView() {
   const registerParticipant = useRegisterParticipant();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'overview' | 'participants' | 'matches' | 'standings'>('overview');
-  const [matchSubTab, setMatchSubTab] = useState<'classification' | 'bracket'>('bracket');
+  const requestedTab = searchParams.get("tab");
+  const activeTab = (["overview", "participants", "matches", "standings"].includes(requestedTab ?? "") ? requestedTab : "overview") as 'overview' | 'participants' | 'matches' | 'standings';
+  const matchSubTab = searchParams.get("view") === "classification" ? "classification" : "bracket";
+
+  const updateNavigation = (updates: Record<string, string | null>) => {
+    const next = new URLSearchParams(search);
+    Object.entries(updates).forEach(([key, value]) => value === null ? next.delete(key) : next.set(key, value));
+    navigate(`/t/${slug}${next.size ? `?${next.toString()}` : ""}`);
+  };
 
   useEffect(() => {
     if (!slug || !trackingToken) return;
@@ -182,6 +192,15 @@ export function TournamentDetailView() {
   const hasPlayoffs = playoffMatches.length > 0;
   const showBracket = hasPlayoffs && (!hasClassification || matchSubTab === 'bracket');
   const registrationStatusLabel = registrationStatus ? getParticipantStatus(registrationStatus.status) : "";
+  const classificationRounds = [...new Set(classificationMatches.map(match => match.round))].sort((a, b) => a - b);
+  const defaultRound = classificationRounds.find(round => classificationMatches.some(match => match.round === round && match.status !== "completed")) ?? classificationRounds.at(-1) ?? 1;
+  const requestedRound = Number(searchParams.get("round"));
+  const selectedRound = classificationRounds.includes(requestedRound) ? requestedRound : defaultRound;
+  const selectedRoundIndex = classificationRounds.indexOf(selectedRound);
+  const selectedRoundMatches = classificationMatches.filter(match => match.round === selectedRound);
+  const completedMatches = tournament.matches.filter(match => match.status === "completed").length;
+  const progress = tournament.matches.length ? Math.round((completedMatches / tournament.matches.length) * 100) : 0;
+  const currentPhase = tournament.status === "registration" ? "Alistamento" : hasPlayoffs ? "Playoffs" : "Classificatória";
   const clearRegistrationTracking = () => {
     localStorage.removeItem(trackingStorageKey);
     setTrackingToken("");
@@ -242,6 +261,20 @@ export function TournamentDetailView() {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="tournament-progress-summary">
+        {[
+          { label: "Fase atual", value: currentPhase },
+          { label: "Rodada", value: classificationRounds.length ? `${selectedRound} de ${classificationRounds.length}` : "A definir" },
+          { label: "Confrontos", value: `${completedMatches}/${tournament.matches.length}` },
+          { label: "Progresso", value: `${progress}%` },
+        ].map(item => (
+          <div key={item.label} className="bg-card/60 border border-border p-4 val-clip-tl">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{item.label}</p>
+            <p className="font-display text-xl uppercase tracking-wider text-foreground mt-1">{item.value}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Navigation */}
       <div className="flex overflow-x-auto no-scrollbar border-b border-border/50 gap-2 pb-px">
         {[
@@ -255,7 +288,8 @@ export function TournamentDetailView() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => updateNavigation({ tab: tab.id, round: tab.id === "matches" ? String(selectedRound) : null })}
+              data-testid={`tab-public-${tab.id}`}
               className={`flex items-center gap-3 px-8 py-5 font-display uppercase tracking-widest text-sm whitespace-nowrap transition-all val-clip-tl relative ${
                 isActive 
                   ? 'bg-muted/50 text-foreground border-t-2 border-primary' 
@@ -421,7 +455,8 @@ export function TournamentDetailView() {
                   {hasClassification && hasPlayoffs && (
                     <div className="flex gap-2 border-b border-border/30 pb-4 mb-6">
                       <button
-                        onClick={() => setMatchSubTab('classification')}
+                        onClick={() => updateNavigation({ tab: "matches", view: "classification", round: String(selectedRound) })}
+                        data-testid="subtab-public-classification"
                         className={`px-4 py-2 font-display text-sm tracking-widest uppercase transition-all val-clip-tl ${
                           matchSubTab === 'classification'
                             ? 'bg-primary/10 text-primary border border-primary/30' 
@@ -431,7 +466,8 @@ export function TournamentDetailView() {
                         Classificatória
                       </button>
                       <button
-                        onClick={() => setMatchSubTab('bracket')}
+                        onClick={() => updateNavigation({ tab: "matches", view: "bracket", round: null })}
+                        data-testid="subtab-public-bracket"
                         className={`px-4 py-2 font-display text-sm tracking-widest uppercase transition-all val-clip-tl ${
                           matchSubTab === 'bracket'
                             ? 'bg-primary/10 text-primary border border-primary/30' 
@@ -446,19 +482,32 @@ export function TournamentDetailView() {
                   {showBracket ? (
                     <TournamentBracket matches={tournament.matches} />
                   ) : (
-                    <div className="space-y-12">
-                      {Array.from(new Set(classificationMatches.map(m => m.round))).sort((a,b)=>a-b).map(round => (
-                        <div key={round} className="space-y-6 relative">
+                    <div className="space-y-6">
+                      {classificationRounds.length > 0 && (
+                        <>
+                          <div className="bg-card/50 border border-border p-3 sm:p-4 flex items-center justify-between gap-3 val-clip-br">
+                            <Button variant="outline" disabled={selectedRoundIndex <= 0} onClick={() => updateNavigation({ tab: "matches", view: "classification", round: String(classificationRounds[selectedRoundIndex - 1]) })} className="rounded-none" data-testid="button-public-previous-round">
+                              <ChevronLeft size={16} className="sm:mr-2" /><span className="hidden sm:inline">Anterior</span>
+                            </Button>
+                            <div className="text-center">
+                              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Navegação da classificatória</p>
+                              <p className="font-display text-xl uppercase tracking-widest text-foreground">Rodada {selectedRound} <span className="text-primary">/ {classificationRounds.length}</span></p>
+                            </div>
+                            <Button variant="outline" disabled={selectedRoundIndex >= classificationRounds.length - 1} onClick={() => updateNavigation({ tab: "matches", view: "classification", round: String(classificationRounds[selectedRoundIndex + 1]) })} className="rounded-none" data-testid="button-public-next-round">
+                              <span className="hidden sm:inline">Próxima</span><ChevronRight size={16} className="sm:ml-2" />
+                            </Button>
+                          </div>
+                          <div className="space-y-6 relative">
                            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                            <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(round).padStart(2, '0')}</span></h4>
+                             <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(selectedRound).padStart(2, '0')}</span></h4>
                              <span className="shrink-0 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-primary">
-                               Meta: {classificationMatches.find(m => m.round === round)?.targetScore ?? 0} rounds
+                                Meta: {selectedRoundMatches[0]?.targetScore ?? 0} rounds
                              </span>
                              <div className="h-px min-w-12 bg-border/50 flex-1"></div>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {classificationMatches.filter(m => m.round === round).map(match => (
+                            {selectedRoundMatches.map(match => (
                               <div key={match.id} className="bg-card border border-border flex flex-col val-clip-tl hover:border-primary/50 transition-colors group relative overflow-hidden">
                                  {match.status === 'completed' && <div className="absolute top-0 right-0 w-1.5 h-full bg-muted"></div>}
                                  {match.status === 'ready' && <div className="absolute top-0 right-0 w-1.5 h-full bg-accent"></div>}
@@ -488,8 +537,16 @@ export function TournamentDetailView() {
                               </div>
                             ))}
                           </div>
+                          </div>
+                        </>
+                      )}
+                      {classificationRounds.length === 0 && (
+                        <div className="bg-card/30 border border-border p-12 text-center val-clip-tl">
+                          <Activity className="mx-auto mb-4 text-muted-foreground" size={36} />
+                          <h4 className="font-display uppercase tracking-widest text-xl">Classificatória ainda não gerada</h4>
+                          <p className="text-muted-foreground mt-2">Os confrontos aparecerão aqui quando o organizador iniciar o torneio.</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>

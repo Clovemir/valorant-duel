@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useParams, Link } from "wouter";
+import { useLocation, useParams, useSearch, Link } from "wouter";
 import { useGetTournament, useUpdateParticipant, useStartTournament, useUpdateTournamentMatch, getGetTournamentQueryKey, getListTournamentsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Shield, Loader2, AlertCircle, Check, X, Play, Edit3, ArrowLeft, Save, ShieldAlert, Target, Copy } from "lucide-react";
+import { Shield, Loader2, AlertCircle, Check, X, Play, Edit3, ArrowLeft, Save, ShieldAlert, Target, Copy, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,9 @@ const getStageLabel = (stage: string) => {
 
 export function TournamentManageView() {
   const { slug } = useParams();
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const searchParams = new URLSearchParams(search);
   const { data: tournament, isLoading, error } = useGetTournament(slug || "");
   const updateParticipant = useUpdateParticipant();
   const startTournament = useStartTournament();
@@ -77,10 +80,17 @@ export function TournamentManageView() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<'participants' | 'matches'>('participants');
-  const [manageMatchSubTab, setManageMatchSubTab] = useState<'edit' | 'bracket'>('edit');
+  const activeTab = searchParams.get("tab") === "matches" ? "matches" : "participants";
+  const manageMatchSubTab = searchParams.get("view") === "bracket" ? "bracket" : "edit";
+  const editPhase = searchParams.get("phase") === "playoffs" ? "playoffs" : "classification";
   const [editingMatch, setEditingMatch] = useState<number | null>(null);
   const [matchScores, setMatchScores] = useState<{p1: string, p2: string}>({ p1: "0", p2: "0" });
+
+  const updateNavigation = (updates: Record<string, string | null>) => {
+    const next = new URLSearchParams(search);
+    Object.entries(updates).forEach(([key, value]) => value === null ? next.delete(key) : next.set(key, value));
+    navigate(`/t/${slug}/manage${next.size ? `?${next.toString()}` : ""}`);
+  };
 
   if (isLoading) {
     return (
@@ -144,7 +154,7 @@ export function TournamentManageView() {
           queryClient.invalidateQueries({ queryKey: getGetTournamentQueryKey(slug) });
           queryClient.invalidateQueries({ queryKey: getListTournamentsQueryKey() });
           toast({ title: "Operação Iniciada", description: "Formato alocado. Matriz de confrontos gerada." });
-          setActiveTab('matches');
+          updateNavigation({ tab: "matches", view: "edit", phase: "classification", round: "1" });
         },
         onError: (err: any) => toast({ title: "Falha Crítica", description: err?.message, variant: "destructive" })
       }
@@ -176,6 +186,16 @@ export function TournamentManageView() {
 
   const approvedCount = tournament.participants.filter(p => p.status === 'approved').length;
   const canStart = tournament.status === 'registration' && approvedCount >= 3;
+  const hasPlayoffMatches = tournament.matches.some(match => match.stage !== "classification");
+  const editableMatches = tournament.matches.filter(match => editPhase === "classification" ? match.stage === "classification" : match.stage !== "classification");
+  const matchRounds = [...new Set(editableMatches.map(match => match.round))].sort((a, b) => a - b);
+  const defaultRound = matchRounds.find(round => editableMatches.some(match => match.round === round && match.status !== "completed")) ?? matchRounds.at(-1) ?? 1;
+  const requestedRound = Number(searchParams.get("round"));
+  const selectedRound = matchRounds.includes(requestedRound) ? requestedRound : defaultRound;
+  const selectedRoundIndex = matchRounds.indexOf(selectedRound);
+  const selectedRoundMatches = editableMatches.filter(match => match.round === selectedRound);
+  const completedMatches = tournament.matches.filter(match => match.status === "completed").length;
+  const pendingApprovals = tournament.participants.filter(participant => participant.status === "pending").length;
 
   return (
     <div className="space-y-10 max-w-6xl mx-auto">
@@ -212,9 +232,24 @@ export function TournamentManageView() {
         )}
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="manage-progress-summary">
+        {[
+          { label: "Pendentes", value: String(pendingApprovals) },
+          { label: "Aprovados", value: String(approvedCount) },
+          { label: "Rodada atual", value: matchRounds.length ? `${selectedRound}/${matchRounds.length}` : "—" },
+          { label: "Resultados", value: `${completedMatches}/${tournament.matches.length}` },
+        ].map(item => (
+          <div key={item.label} className="bg-card/60 border border-border p-4 val-clip-tl">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{item.label}</p>
+            <p className="font-display text-2xl uppercase tracking-wider text-foreground mt-1">{item.value}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="flex overflow-x-auto no-scrollbar border-b border-border/50 gap-2">
         <button
-          onClick={() => setActiveTab('participants')}
+          onClick={() => updateNavigation({ tab: "participants", view: null, round: null })}
+          data-testid="tab-manage-participants"
           className={`flex items-center gap-2 px-8 py-4 font-display uppercase tracking-widest text-sm whitespace-nowrap transition-all val-clip-tl relative ${
             activeTab === 'participants'
               ? 'bg-muted/50 text-foreground border-t-2 border-primary' 
@@ -224,7 +259,8 @@ export function TournamentManageView() {
           Esquadrão ({tournament.participants.length})
         </button>
         <button
-          onClick={() => setActiveTab('matches')}
+          onClick={() => updateNavigation({ tab: "matches", view: "edit", phase: editPhase, round: String(selectedRound) })}
+          data-testid="tab-manage-matches"
           className={`flex items-center gap-2 px-8 py-4 font-display uppercase tracking-widest text-sm whitespace-nowrap transition-all val-clip-tl relative ${
             activeTab === 'matches'
               ? 'bg-muted/50 text-foreground border-t-2 border-primary' 
@@ -333,27 +369,46 @@ export function TournamentManageView() {
               <div className="space-y-6">
                 {tournament.matches.some(m => m.stage !== 'classification') && (
                   <div className="flex gap-2 border-b border-border/30 pb-4 mb-6">
-                    <button onClick={() => setManageMatchSubTab('edit')} className={`px-4 py-2 font-display text-sm tracking-widest uppercase val-clip-tl transition-all border ${manageMatchSubTab === 'edit' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent text-muted-foreground border-transparent hover:border-border'}`}>Lista de Edição</button>
-                    <button onClick={() => setManageMatchSubTab('bracket')} className={`px-4 py-2 font-display text-sm tracking-widest uppercase val-clip-tl transition-all border ${manageMatchSubTab === 'bracket' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent text-muted-foreground border-transparent hover:border-border'}`}>Visualizar Chaveamento</button>
+                    <button onClick={() => updateNavigation({ tab: "matches", view: "edit", phase: editPhase, round: String(selectedRound) })} data-testid="subtab-manage-edit" className={`px-4 py-2 font-display text-sm tracking-widest uppercase val-clip-tl transition-all border ${manageMatchSubTab === 'edit' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent text-muted-foreground border-transparent hover:border-border'}`}>Lista de Edição</button>
+                    <button onClick={() => updateNavigation({ tab: "matches", view: "bracket", phase: null, round: null })} data-testid="subtab-manage-bracket" className={`px-4 py-2 font-display text-sm tracking-widest uppercase val-clip-tl transition-all border ${manageMatchSubTab === 'bracket' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-transparent text-muted-foreground border-transparent hover:border-border'}`}>Visualizar Chaveamento</button>
                   </div>
                 )}
 
                 {manageMatchSubTab === 'bracket' && tournament.matches.some(m => m.stage !== 'classification') ? (
                   <TournamentBracket matches={tournament.matches} />
                 ) : (
-                  <div className="space-y-12">
-                    {Array.from(new Set(tournament.matches.map(m => m.round))).sort((a,b)=>a-b).map(round => (
-                      <div key={round} className="space-y-6">
+                  <div className="space-y-6">
+                    {matchRounds.length > 0 ? (
+                      <>
+                        {hasPlayoffMatches && (
+                          <div className="flex gap-2" aria-label="Fase para edição">
+                            <button onClick={() => updateNavigation({ tab: "matches", view: "edit", phase: "classification", round: "1" })} data-testid="filter-manage-classification" className={`px-4 py-2 border font-display uppercase tracking-widest text-xs ${editPhase === "classification" ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Classificatória</button>
+                            <button onClick={() => updateNavigation({ tab: "matches", view: "edit", phase: "playoffs", round: "1" })} data-testid="filter-manage-playoffs" className={`px-4 py-2 border font-display uppercase tracking-widest text-xs ${editPhase === "playoffs" ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Playoffs</button>
+                          </div>
+                        )}
+                        <div className="bg-card/50 border border-border p-3 sm:p-4 flex items-center justify-between gap-3 val-clip-br">
+                          <Button variant="outline" disabled={selectedRoundIndex <= 0} onClick={() => updateNavigation({ tab: "matches", view: "edit", phase: editPhase, round: String(matchRounds[selectedRoundIndex - 1]) })} className="rounded-none" data-testid="button-manage-previous-round">
+                            <ChevronLeft size={16} className="sm:mr-2" /><span className="hidden sm:inline">Anterior</span>
+                          </Button>
+                          <div className="text-center">
+                            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Edição — {editPhase === "classification" ? "classificatória" : "playoffs"}</p>
+                            <p className="font-display text-xl uppercase tracking-widest">Rodada {selectedRound} <span className="text-primary">/ {matchRounds.length}</span></p>
+                          </div>
+                          <Button variant="outline" disabled={selectedRoundIndex >= matchRounds.length - 1} onClick={() => updateNavigation({ tab: "matches", view: "edit", phase: editPhase, round: String(matchRounds[selectedRoundIndex + 1]) })} className="rounded-none" data-testid="button-manage-next-round">
+                            <span className="hidden sm:inline">Próxima</span><ChevronRight size={16} className="sm:ml-2" />
+                          </Button>
+                        </div>
+                        <div className="space-y-6">
                        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                          <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(round).padStart(2, '0')}</span></h4>
+                          <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(selectedRound).padStart(2, '0')}</span></h4>
                          <span className="shrink-0 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-primary">
-                           Meta: {tournament.matches.find(m => m.round === round)?.targetScore ?? 0} rounds
+                            Meta: {selectedRoundMatches[0]?.targetScore ?? 0} rounds
                          </span>
                          <div className="h-px min-w-12 bg-border/50 flex-1"></div>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {tournament.matches.filter(m => m.round === round).map(match => (
+                          {selectedRoundMatches.map(match => (
                             <div key={match.id} className="bg-card border border-border flex flex-col val-clip-tl relative overflow-hidden group">
                                {match.status === 'completed' && <div className="absolute top-0 right-0 w-1.5 h-full bg-muted"></div>}
                                {match.status === 'ready' && <div className="absolute top-0 right-0 w-1.5 h-full bg-accent"></div>}
@@ -437,8 +492,15 @@ export function TournamentManageView() {
                             </div>
                           ))}
                         </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="bg-card/30 border border-border p-12 text-center val-clip-tl">
+                        <Activity className="mx-auto mb-4 text-muted-foreground" size={36} />
+                        <h4 className="font-display uppercase tracking-widest text-xl">Nenhuma rodada disponível</h4>
+                        <p className="text-muted-foreground mt-2">{editPhase === "playoffs" ? "Os playoffs serão disponibilizados após a conclusão da classificatória." : "Aprove pelo menos três participantes e autorize o início para gerar os confrontos."}</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
