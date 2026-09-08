@@ -119,6 +119,8 @@ export function TournamentManageView() {
 
   const handleParticipantStatus = (participantId: number, status: 'approved' | 'rejected') => {
     if (!slug) return;
+    const selected = tournament.participants.find(participant => participant.id === participantId);
+    if (status === 'rejected' && !window.confirm(`Rejeitar a inscrição de ${selected?.nickname ?? "este participante"}?`)) return;
     updateParticipant.mutate(
       { slug, participantId, data: { status } },
       {
@@ -133,6 +135,8 @@ export function TournamentManageView() {
 
   const handleStartTournament = () => {
     if (!slug) return;
+    const format = approvedCount <= 6 ? "todos contra todos" : "sistema suíço";
+    if (!window.confirm(`Iniciar o torneio com ${approvedCount} participantes no formato ${format}? Após o início, o elenco ficará bloqueado.`)) return;
     startTournament.mutate(
       { slug },
       {
