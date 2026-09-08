@@ -75,6 +75,18 @@ const getMatchStatus = (status: string) => {
   }
 };
 
+const getStageLabel = (stage: string) => {
+  const labels: Record<string, string> = {
+    classification: 'Classificatória',
+    playoff_round_32: 'Playoffs — 32 avos',
+    playoff_round_16: 'Playoffs — Oitavas',
+    playoff_quarterfinal: 'Playoffs — Quartas',
+    playoff_semifinal: 'Playoffs — Semifinal',
+    playoff_final: 'Grande Final',
+  };
+  return labels[stage] ?? stage.replaceAll('_', ' ');
+};
+
 const registerSchema = z.object({
   nickname: z.string().min(2, "Nick deve ter pelo menos 2 caracteres").max(32, "Máximo de 32 caracteres"),
 });
@@ -344,9 +356,12 @@ export function TournamentDetailView() {
                 <div className="space-y-12">
                   {Array.from(new Set(tournament.matches.map(m => m.round))).sort((a,b)=>a-b).map(round => (
                     <div key={round} className="space-y-6 relative">
-                      <div className="flex items-center gap-4">
+                       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                         <h4 className="font-display uppercase tracking-widest text-2xl text-foreground">Rodada <span className="text-primary">{String(round).padStart(2, '0')}</span></h4>
-                        <div className="h-px bg-border/50 flex-1"></div>
+                         <span className="shrink-0 border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-primary">
+                           Meta: {tournament.matches.find(m => m.round === round)?.targetScore ?? 0} rounds
+                         </span>
+                         <div className="h-px min-w-12 bg-border/50 flex-1"></div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -357,9 +372,13 @@ export function TournamentDetailView() {
                              
                              <div className="p-5 flex flex-col gap-4">
                                 <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                                  <span>{match.stage}</span>
+                                   <span>{getStageLabel(match.stage)}</span>
                                   <span className={match.status === 'ready' ? 'text-accent' : ''}>{getMatchStatus(match.status)}</span>
                                 </div>
+                                 <div className="flex items-center justify-between border-y border-border/40 bg-background/60 px-3 py-2 font-mono text-[10px] uppercase tracking-widest">
+                                   <span className="text-muted-foreground">Condição de vitória</span>
+                                   <strong className="text-primary">Chegar a {match.targetScore} rounds</strong>
+                                 </div>
                                 
                                 <div className="space-y-1">
                                   <div className={`flex justify-between items-center p-3 border-l-2 transition-colors ${match.player1Score && match.player2Score && match.player1Score > match.player2Score ? 'border-primary bg-primary/5 text-foreground' : 'border-transparent bg-background text-muted-foreground'}`}>
